@@ -1,6 +1,7 @@
 import { DEFAULT_MODEL, MODEL_OPTIONS } from '@/constants/models'
 
-// 默认设置作为单一来源，供设置 store 初始化和后续重置逻辑复用。
+// 默认设置集中维护在这里，作为 setting store 的初始化来源。
+// 这样设置面板、store 和请求层都能围绕同一组默认值工作。
 export const DEFAULT_SETTINGS = {
   model: DEFAULT_MODEL,
   apiKey: '',

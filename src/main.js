@@ -7,10 +7,14 @@ import router from './router'
 import './assets/styles/main.scss'
 import 'animate.css'
 
-// 应用入口：统一注册 Pinia、持久化插件、路由和全局样式。
+// 应用启动入口。
+// 这个文件只负责把全局运行时能力装配起来，不承担具体页面业务。
 const app = createApp(App)
 
+// 为应用注册 Pinia，并把持久化插件挂到 Pinia 实例上。
+// 这样声明了 `persist: true` 的 store 会自动同步到本地存储。
 app.use(createPinia().use(persist))
 app.use(router)
 
+// 把根应用挂到 index.html 里的 #app 节点，应用从这里开始渲染。
 app.mount('#app')

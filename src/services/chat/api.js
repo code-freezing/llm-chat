@@ -3,7 +3,7 @@ import { useSettingStore } from '@/stores/setting'
 
 export const createChatCompletion = async (messages) => {
   const settingStore = useSettingStore()
-  // 请求体直接映射设置面板中的参数，确保界面配置和接口调用一致。
+  // 请求体直接来自 setting store，确保界面上的配置和真正发出的参数保持一致。
   const payload = {
     model: settingStore.settings.model,
     messages,
@@ -24,7 +24,7 @@ export const createChatCompletion = async (messages) => {
   }
 
   try {
-    // 非流式响应会一次性返回完整结果，这里顺手记录生成速度。
+    // 记录开始时间，用于在非流式模式下估算生成速度。
     const startTime = Date.now()
     const response = await fetch(`${API_BASE_URL}/chat/completions`, options)
 
@@ -32,11 +32,13 @@ export const createChatCompletion = async (messages) => {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
 
-    // 流式模式把原始 Response 交给上层逐段解析。
+    // 如果当前是流式模式，这里不直接解析内容，
+    // 而是把原始 Response 交给 messageHandler 逐段读取 body。
     if (settingStore.settings.stream) {
       return response
     }
 
+    // 非流式模式下接口直接返回完整 JSON，因此在这里一次性读取即可。
     const data = await response.json()
     const duration = (Date.now() - startTime) / 1000
     data.speed = (data.usage.completion_tokens / duration).toFixed(2)

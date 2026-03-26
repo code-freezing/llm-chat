@@ -33,13 +33,16 @@ import { ref } from 'vue'
 import { WarningFilled } from '@element-plus/icons-vue'
 import { useChatStore } from '@/stores/chat'
 
+// DialogEdit 复用一个弹窗承载两种操作：
+// - 编辑会话标题
+// - 删除会话确认
 const chatStore = useChatStore()
 const dialogVisible = ref(false)
 const inputTitle = ref('')
 const currentConversationId = ref(null)
 const dialogType = ref('edit')
 
-// 同一个弹窗复用“编辑标题”和“删除确认”两种模式。
+// 父组件通过 openDialog 传入会话 id 和模式，从外部驱动弹窗打开。
 const openDialog = (conversationId, type = 'edit') => {
   currentConversationId.value = conversationId
   dialogType.value = type
@@ -52,6 +55,9 @@ const openDialog = (conversationId, type = 'edit') => {
   dialogVisible.value = true
 }
 
+// 确认按钮会根据当前模式执行不同动作：
+// - edit：更新标题
+// - delete：删除会话
 const handleConfirm = () => {
   if (dialogType.value === 'edit') {
     if (!inputTitle.value.trim()) return
@@ -64,12 +70,14 @@ const handleConfirm = () => {
   inputTitle.value = ''
 }
 
+// 取消时只负责关闭弹窗并清空临时输入，不触碰 store。
 const handleCancel = () => {
   dialogVisible.value = false
   inputTitle.value = ''
 }
 
 defineExpose({
+  // 暴露给父组件，方便从菜单或聊天页标题区域直接拉起弹窗。
   openDialog,
 })
 </script>

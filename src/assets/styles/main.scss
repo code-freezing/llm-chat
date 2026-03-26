@@ -1,11 +1,13 @@
 @use 'variables.scss';
 
+// 全局重置：清理浏览器默认 margin / padding，并统一盒模型。
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+// body 负责承接全局主题变量，页面背景色、文字色和基础字体都从这里统一落地。
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     sans-serif;
@@ -17,6 +19,7 @@ body {
     color 0.3s;
 }
 
+// 这两组过渡类用于页面里常见的显隐动画，供 Transition 组件直接复用。
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;

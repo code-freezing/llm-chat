@@ -64,6 +64,8 @@
 import { ref } from 'vue'
 import { Close, Document } from '@element-plus/icons-vue'
 
+// ChatInput 只负责收集输入，不直接发请求。
+// 它把用户输入和附件列表整理好后，通过 emit 交给父组件驱动真正的聊天流程。
 const inputValue = ref('')
 const fileList = ref([])
 
@@ -76,7 +78,10 @@ const props = defineProps({
 
 const emit = defineEmits(['send'])
 
-// 输入组件只负责收集内容和附件，实际请求由父组件发起。
+// 发送时只做两件事：
+// 1. 组装当前输入内容
+// 2. 通知父组件处理业务
+// 发送完成后立即清空输入框和附件预览，避免残留上一轮状态。
 const handleSend = () => {
   if (!inputValue.value.trim() || props.loading) return
 
@@ -96,7 +101,8 @@ const handleNewline = (event) => {
   inputValue.value += '\n'
 }
 
-// 当前版本只做前端预览，不在这里上传或解析文件内容。
+// 当前版本里的附件只用于本地预览，不会在这里直接上传，也不会做内容解析。
+// `URL.createObjectURL` 用来为本地文件生成临时预览地址。
 const handleFileUpload = (uploadFile) => {
   const file = uploadFile.raw
   if (!file) return false
@@ -111,6 +117,7 @@ const handleFileUpload = (uploadFile) => {
   return false
 }
 
+// 移除附件时顺手释放对象 URL，避免浏览器持续持有无用的本地引用。
 const handleFileRemove = (file) => {
   const index = fileList.value.findIndex((item) => item.url === file.url)
   if (index !== -1) {

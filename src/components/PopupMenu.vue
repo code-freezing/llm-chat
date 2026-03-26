@@ -56,6 +56,8 @@ import { Plus } from '@element-plus/icons-vue'
 import DialogEdit from '@/components/DialogEdit.vue'
 import { useChatStore } from '@/stores/chat'
 
+// PopupMenu 是聊天页左上角的会话入口菜单。
+// 它不保存会话数据，只把 store 里的会话列表可视化，并提供切换/编辑/删除入口。
 const isVisible = ref(false)
 const chatStore = useChatStore()
 const dialogEdit = ref(null)
@@ -76,6 +78,7 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 
+// 顶部按钮点击时切换菜单显隐状态。
 const toggle = () => {
   isVisible.value = !isVisible.value
 }
@@ -90,12 +93,13 @@ const handleSwitchChat = (conversationId) => {
   isVisible.value = false
 }
 
-// 历史标题在侧边菜单中做截断，避免过长标题撑破布局。
+// 历史会话标题较长时做截断，避免菜单横向被撑开。
 const formatTitle = (title) => {
   return title.length > 4 ? `${title.slice(0, 4)}...` : title
 }
 
 defineExpose({
+  // 允许父组件在需要时从外部控制菜单开关。
   toggle,
 })
 </script>

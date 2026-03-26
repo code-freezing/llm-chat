@@ -1,7 +1,4 @@
 <template>
-  <router-view></router-view>
+  <!-- 根组件本身不承载业务界面，只提供路由出口。 -->
+  <router-view />
 </template>
-
-<style>
-/* 移除所有过渡动画相关的样式 */
-</style>

@@ -76,6 +76,8 @@ import dislikeActiveIcon from '@/assets/photo/踩2.png'
 import regenerateIcon from '@/assets/photo/重新生成.png'
 import thinkingIcon from '@/assets/photo/深度思考.png'
 
+// ChatMessage 负责把消息对象渲染成最终可见的聊天气泡。
+// 除了普通内容展示外，它还承担 reasoning 展示、附件预览和消息操作按钮。
 const props = defineProps({
   message: {
     type: Object,
@@ -94,11 +96,13 @@ const isDisliked = ref(false)
 const isCopied = ref(false)
 const isReasoningExpanded = ref(true)
 
-// 推理内容和最终回答分开展示，兼容支持 reasoning 的模型。
+// 支持 reasoning 的模型会返回两段内容：
+// 一段是推理过程，一段是最终回答，这里允许用户单独展开或折叠推理内容。
 const toggleReasoning = () => {
   isReasoningExpanded.value = !isReasoningExpanded.value
 }
 
+// 这里复制的是最终回答正文，不包含 reasoning 内容。
 const handleCopy = async () => {
   try {
     await navigator.clipboard.writeText(props.message.content)
@@ -126,6 +130,8 @@ const handleRegenerate = () => {
   emit('regenerate')
 }
 
+// 代码块内的复制和主题切换按钮并不是 Vue 组件事件。
+// 原因是代码块 HTML 来自 Markdown 渲染字符串，最终通过 v-html 插入页面。
 const handleCodeCopy = async (event) => {
   const codeBlock = event.target.closest('.code-block')
   const code = codeBlock.querySelector('code').textContent
@@ -151,7 +157,8 @@ const handleThemeToggle = (event) => {
 let observer = null
 
 onMounted(() => {
-  // Markdown 代码块是通过 v-html 注入的，需要在渲染后补按钮事件。
+  // 因为代码块 DOM 不是在模板里直接声明的，所以需要在渲染后手动补事件绑定。
+  // 这里通过 MutationObserver 监听页面变化，一旦出现新的 code-block 就绑定按钮事件。
   observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
       if (!mutation.addedNodes.length) return
@@ -181,6 +188,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  // 组件销毁时断开观察器，并清理已经挂上的按钮事件，避免内存泄漏。
   observer?.disconnect()
 
   const codeBlocks = document.querySelectorAll('.code-block')
@@ -193,6 +201,7 @@ onUnmounted(() => {
   })
 })
 
+// 最终消息内容和 reasoning 内容都会先转成 HTML，再交给模板里的 v-html 渲染。
 const renderedContent = computed(() => renderMarkdown(props.message.content))
 
 const renderedReasoning = computed(() => {

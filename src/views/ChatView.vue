@@ -75,19 +75,27 @@ import { messageHandler } from '@/services/chat/messageHandler'
 import { useChatStore } from '@/stores/chat'
 import { useSettingStore } from '@/stores/setting'
 
+// ChatView 是聊天页的业务协调层。
+// 页面输入、会话状态、接口请求和消息展示都会在这里汇合。
 const chatStore = useChatStore()
 const settingStore = useSettingStore()
 const router = useRouter()
 
+// 页面模板主要消费这几个衍生状态，而不是直接在模板里操作完整 store 结构。
 const currentMessages = computed(() => chatStore.currentMessages)
 const isLoading = computed(() => chatStore.isLoading)
 const currentTitle = computed(() => chatStore.currentConversation?.title || 'LLM Chat')
 
+// 这些 ref 分别对应消息容器或子组件实例：
+// - messagesContainer 用于控制滚动位置
+// - settingDrawer / dialogEdit 用于调用子组件暴露的方法
 const messagesContainer = ref(null)
 const settingDrawer = ref(null)
 const popupMenu = ref(null)
 const dialogEdit = ref(null)
 
+// 聊天界面最常见的交互就是“始终看到最后一条消息”，
+// 因此只要当前消息列表变化，就把滚动条推到底部。
 watch(
   currentMessages,
   () => {
@@ -101,12 +109,14 @@ watch(
 )
 
 onMounted(() => {
+  // 首次进入页面时，如果本地已恢复出历史消息，也需要滚动到最底部。
   nextTick(() => {
     if (messagesContainer.value) {
       messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
     }
   })
 
+  // 做一层兜底，避免页面在“没有当前会话”的状态下工作。
   if (chatStore.conversations.length === 0) {
     chatStore.createConversation()
   }
@@ -114,18 +124,27 @@ onMounted(() => {
 
 const handleSend = async (messageContent) => {
   try {
+    // 第一步：先把用户输入写入当前会话。
     chatStore.addMessage(
       messageHandler.formatMessage('user', messageContent.text, '', messageContent.files),
     )
+
+    // 第二步：立刻插入一条空的 assistant 消息作为占位。
+    // 后续无论接口是流式还是非流式，都统一更新最后一条助手消息。
     chatStore.addMessage(messageHandler.formatMessage('assistant', '', ''))
 
+    // 第三步：把页面切到生成中状态，并把占位消息标记为 loading。
     chatStore.setIsLoading(true)
     const lastMessage = chatStore.getLastMessage()
     lastMessage.loading = true
 
+    // 第四步：从当前会话提取接口真正需要的上下文格式。
+    // 这里仅保留 role 和 content，不把本地展示字段发送给模型接口。
     const messages = chatStore.currentMessages.map(({ role, content }) => ({ role, content }))
     const response = await createChatCompletion(messages)
 
+    // 第五步：把响应交给统一的消息处理器。
+    // 它会根据 stream 开关走不同解析逻辑，但最终都通过同一个回调回写 store。
     await messageHandler.handleResponse(
       response,
       settingStore.settings.stream,
@@ -147,6 +166,8 @@ const handleSend = async (messageContent) => {
 
 const handleRegenerate = async () => {
   try {
+    // 重新生成的实现很直接：
+    // 删除最后一轮 user + assistant，再把上一条用户消息重新走一遍发送流程。
     const lastUserMessage = chatStore.currentMessages[chatStore.currentMessages.length - 2]
     chatStore.currentMessages.splice(-2, 2)
     await handleSend({ text: lastUserMessage.content, files: lastUserMessage.files })
@@ -159,8 +180,9 @@ const handleNewChat = () => {
   chatStore.createConversation()
 }
 
+// 顶部标题空间有限，因此只做一个非常轻量的截断展示。
 const formatTitle = (title) => {
-  return title.length > 4 ? `${title.slice(0, 4)}...` : title
+  return title.length > 12 ? `${title.slice(0, 12)}...` : title
 }
 
 const handleBack = async () => {

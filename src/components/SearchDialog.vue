@@ -56,6 +56,8 @@ import { messageHandler } from '@/services/chat/messageHandler'
 import { createChatCompletion } from '@/services/chat/api'
 import { useSettingStore } from '@/stores/setting'
 
+// SearchDialog 是首页里的轻量提问弹层。
+// 它复用了聊天请求与消息渲染能力，但消息状态只保存在本组件内部。
 const searchText = ref('')
 const messages = ref([])
 const isLoading = ref(false)
@@ -72,6 +74,7 @@ const suggestedPrompts = [
 
 const messagesContainer = ref(null)
 
+// 和主聊天页一样，消息变化后自动滚动到底部，优先展示最新回复。
 watch(
   messages,
   () => {
@@ -90,6 +93,7 @@ const handleSend = async () => {
   try {
     isLoading.value = true
 
+    // 先写入用户消息，再补一条空的 assistant 消息占位。
     messages.value.push(messageHandler.formatMessage('user', searchText.value.trim()))
     messages.value.push(messageHandler.formatMessage('assistant', '', ''))
 
@@ -100,6 +104,7 @@ const handleSend = async () => {
     const messagesForAPI = messages.value.map(({ role, content }) => ({ role, content }))
     const response = await createChatCompletion(messagesForAPI)
 
+    // 这里不经过全局 chat store，而是直接把解析结果回填到本地最后一条 assistant 消息。
     await messageHandler.handleResponse(
       response,
       settingStore.settings.stream,
@@ -123,6 +128,8 @@ const handleSend = async () => {
 
 const handleRegenerate = async () => {
   try {
+    // 重新生成与主聊天页保持同样思路：
+    // 删除最后一轮问答，再把上一条用户消息重新发送一次。
     const lastUserMessage = messages.value[messages.value.length - 2]
     messages.value.splice(-2, 2)
 

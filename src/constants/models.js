@@ -1,4 +1,5 @@
-// 可选模型集中维护，避免在多个组件里重复写死模型信息。
+// 所有可选模型集中维护在这里，避免在多个组件或服务里重复写死模型信息。
+// 每一项同时描述展示名称、真正发送给接口的模型值，以及该模型允许的最大 tokens。
 export const MODEL_OPTIONS = [
   {
     label: 'MiniMax-M2.5',
@@ -40,7 +41,12 @@ export const MODEL_OPTIONS = [
     value: 'Qwen/Qwen3.5-397B-A17B',
     maxTokens: 65536,
   },
+  {
+    label: 'test-model',
+    value: 'test-model',
+    maxTokens: 65536,
+  },
 ]
 
-// 默认模型直接取模型列表第一项，保证默认值始终有效。
+// 默认模型直接取列表第一项，确保“默认值”和“可选列表”始终保持一致。
 export const DEFAULT_MODEL = MODEL_OPTIONS[0].value

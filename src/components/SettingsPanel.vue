@@ -163,15 +163,19 @@ import { useSettingStore } from '@/stores/setting'
 import { MODEL_OPTIONS } from '@/constants/models'
 import { QuestionFilled } from '@element-plus/icons-vue'
 
+// SettingsPanel 直接操作 setting store。
+// 用户在这里改动的模型和参数，会直接影响后续聊天请求的请求体。
 const settingStore = useSettingStore()
 const visible = ref(false)
 
-// 选中模型变化时，联动限制 maxTokens 的可选上限。
+// 不同模型支持的最大 tokens 上限不同，
+// 因此这里根据当前选中的模型动态限制 Max Tokens 控件的最大值。
 const currentMaxTokens = computed(() => {
   const selectedModel = MODEL_OPTIONS.find((option) => option.value === settingStore.settings.model)
   return selectedModel ? selectedModel.maxTokens : 4096
 })
 
+// 当模型发生切换时，如果当前 maxTokens 超出新模型上限，就自动收回。
 watch(
   () => settingStore.settings.model,
   (newModel) => {
@@ -185,7 +189,7 @@ watch(
   },
 )
 
-// 暴露给父组件，允许从聊天页直接打开设置抽屉。
+// 聊天页通过组件 ref 调用 openDrawer，从外部直接打开设置抽屉。
 const openDrawer = () => {
   visible.value = true
 }
