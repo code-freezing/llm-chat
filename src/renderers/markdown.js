@@ -2,6 +2,7 @@ import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import mdLinkAttributes from 'markdown-it-link-attributes'
 import { full as emoji } from 'markdown-it-emoji'
+import DOMPurify from 'dompurify'
 import 'highlight.js/styles/atom-one-dark.css'
 
 import copyIcon from '@/assets/photo/复制.png'
@@ -45,7 +46,12 @@ md.use(emoji)
 
 export const renderMarkdown = (content) => {
   if (!content) return ''
-  return md.render(content)
+
+  // Markdown 渲染结果最终会通过 `v-html` 注入到页面里，
+  // 因此这里统一用 DOMPurify 做一次净化，拦掉脚本、事件属性等危险内容。
+  // 这样既保留当前 markdown-it 的富文本能力，也把 XSS 风险收敛到渲染器这一层处理。
+  const html = md.render(content)
+  return DOMPurify.sanitize(html)
 }
 
 export { md }
