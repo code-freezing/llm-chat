@@ -12,6 +12,7 @@ export const useChatStore = defineStore(
       {
         id: '1',
         title: DEFAULT_CONVERSATION_TITLE,
+        summary: '',
         messages: [],
         createdAt: Date.now(),
       },
@@ -35,6 +36,7 @@ export const useChatStore = defineStore(
       const newConversation = {
         id: Date.now().toString(),
         title: DEFAULT_CONVERSATION_TITLE,
+        summary: '',
         messages: [],
         createdAt: Date.now(),
       }
@@ -91,6 +93,13 @@ export const useChatStore = defineStore(
       }
     }
 
+    const updateConversationSummary = (conversationId, summary) => {
+      const conversation = conversations.value.find((item) => item.id === conversationId)
+      if (conversation) {
+        conversation.summary = summary
+      }
+    }
+
     const deleteConversation = (conversationId) => {
       const index = conversations.value.findIndex((item) => item.id === conversationId)
       if (index === -1) return
@@ -123,6 +132,7 @@ export const useChatStore = defineStore(
       createConversation,
       switchConversation,
       updateConversationTitle,
+      updateConversationSummary,
       deleteConversation,
     }
   },

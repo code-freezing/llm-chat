@@ -1,17 +1,20 @@
 import { API_BASE_URL } from '@/config/env'
 import { useSettingStore } from '@/stores/setting'
 
-export const createChatCompletion = async (messages) => {
+export const createChatCompletion = async (messages, requestOptions = {}) => {
   const settingStore = useSettingStore()
+  const stream =
+    requestOptions.stream === undefined ? settingStore.settings.stream : requestOptions.stream
+  const maxTokens = requestOptions.maxTokens ?? settingStore.settings.maxTokens
+  const model = requestOptions.model ?? settingStore.settings.model
+
   // 请求体直接来自 setting store，确保界面上的配置和真正发出的参数保持一致。
+  // 摘要请求会通过 requestOptions 覆盖 stream / max_tokens，这样不用再额外维护一套重复请求函数。
   const payload = {
-    model: settingStore.settings.model,
+    model,
     messages,
-    stream: settingStore.settings.stream,
-    max_tokens: settingStore.settings.maxTokens,
-    temperature: settingStore.settings.temperature,
-    top_p: settingStore.settings.topP,
-    top_k: settingStore.settings.topK,
+    stream,
+    max_tokens: maxTokens,
   }
 
   const options = {
@@ -34,7 +37,7 @@ export const createChatCompletion = async (messages) => {
 
     // 如果当前是流式模式，这里不直接解析内容，
     // 而是把原始 Response 交给 messageHandler 逐段读取 body。
-    if (settingStore.settings.stream) {
+    if (stream) {
       return response
     }
 

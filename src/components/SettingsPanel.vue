@@ -52,6 +52,43 @@
 
       <div class="setting-item">
         <div class="setting-label">
+          角色设定
+          <el-tooltip content="选择一套系统提示词预设，快速切换助手角色" placement="top">
+            <el-icon><QuestionFilled /></el-icon>
+          </el-tooltip>
+        </div>
+        <el-select
+          v-model="settingStore.settings.systemPromptPreset"
+          class="model-select"
+          placeholder="选择角色预设"
+        >
+          <el-option
+            v-for="preset in SYSTEM_PROMPT_PRESETS"
+            :key="preset.value"
+            :label="preset.label"
+            :value="preset.value"
+          />
+        </el-select>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          System Prompt
+          <el-tooltip content="这段提示词会作为 system 消息插入到每次对话请求最前面" placement="top">
+            <el-icon><QuestionFilled /></el-icon>
+          </el-tooltip>
+        </div>
+        <el-input
+          v-model="settingStore.settings.systemPrompt"
+          type="textarea"
+          :rows="6"
+          resize="vertical"
+          placeholder="请输入系统提示词"
+        />
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
           Max Tokens
           <el-tooltip content="限制单次生成内容的最大长度" placement="top">
             <el-icon><QuestionFilled /></el-icon>
@@ -75,84 +112,6 @@
           />
         </div>
       </div>
-
-      <div class="setting-item">
-        <div class="setting-label">
-          Temperature
-          <el-tooltip content="值越高，回复越随机" placement="top">
-            <el-icon><QuestionFilled /></el-icon>
-          </el-tooltip>
-        </div>
-        <div class="setting-control">
-          <el-slider
-            v-model="settingStore.settings.temperature"
-            :min="0"
-            :max="2"
-            :step="0.1"
-            :show-tooltip="false"
-            class="setting-slider"
-          />
-          <el-input-number
-            v-model="settingStore.settings.temperature"
-            :min="0"
-            :max="2"
-            :step="0.1"
-            controls-position="right"
-          />
-        </div>
-      </div>
-
-      <div class="setting-item">
-        <div class="setting-label">
-          Top-P
-          <el-tooltip content="控制候选词的累积概率范围" placement="top">
-            <el-icon><QuestionFilled /></el-icon>
-          </el-tooltip>
-        </div>
-        <div class="setting-control">
-          <el-slider
-            v-model="settingStore.settings.topP"
-            :min="0"
-            :max="1"
-            :step="0.1"
-            :show-tooltip="false"
-            class="setting-slider"
-          />
-          <el-input-number
-            v-model="settingStore.settings.topP"
-            :min="0"
-            :max="1"
-            :step="0.1"
-            controls-position="right"
-          />
-        </div>
-      </div>
-
-      <div class="setting-item">
-        <div class="setting-label">
-          Top-K
-          <el-tooltip content="保留概率最高的 K 个候选词" placement="top">
-            <el-icon><QuestionFilled /></el-icon>
-          </el-tooltip>
-        </div>
-        <div class="setting-control">
-          <el-slider
-            v-model="settingStore.settings.topK"
-            :min="1"
-            :max="100"
-            :step="1"
-            :show-tooltip="false"
-            class="setting-slider"
-          />
-          <el-input-number
-            v-model="settingStore.settings.topK"
-            :min="1"
-            :max="100"
-            :step="1"
-            controls-position="right"
-          />
-        </div>
-      </div>
     </div>
   </el-drawer>
 </template>
@@ -161,12 +120,17 @@
 import { ref, watch, computed } from 'vue'
 import { useSettingStore } from '@/stores/setting'
 import { MODEL_OPTIONS } from '@/constants/models'
+import {
+  SYSTEM_PROMPT_PRESETS,
+  getSystemPromptByPreset,
+} from '@/constants/systemPrompts'
 import { QuestionFilled } from '@element-plus/icons-vue'
 
 // SettingsPanel 直接操作 setting store。
 // 用户在这里改动的模型和参数，会直接影响后续聊天请求的请求体。
 const settingStore = useSettingStore()
 const visible = ref(false)
+let isUpdatingPromptFromPreset = false
 
 // 不同模型支持的最大 tokens 上限不同，
 // 因此这里根据当前选中的模型动态限制 Max Tokens 控件的最大值。
@@ -186,6 +150,34 @@ watch(
       settingStore.settings.maxTokens,
       selectedModel.maxTokens,
     )
+  },
+)
+
+// 角色预设是“填充 system prompt 的快捷入口”。
+// 用户切换预设时，直接把对应提示词写入可编辑文本框，后续仍然允许用户继续手动修改。
+watch(
+  () => settingStore.settings.systemPromptPreset,
+  (presetValue) => {
+    if (presetValue === 'custom') return
+
+    isUpdatingPromptFromPreset = true
+    settingStore.settings.systemPrompt = getSystemPromptByPreset(presetValue)
+    isUpdatingPromptFromPreset = false
+  },
+)
+
+// 用户手动改写 system prompt 后，界面上的角色预设也要同步切到“自定义”，
+// 避免下拉框仍然显示某个预设名称，但实际发送给模型的 prompt 已经变了。
+watch(
+  () => settingStore.settings.systemPrompt,
+  (prompt) => {
+    if (isUpdatingPromptFromPreset) return
+
+    const matchedPreset = SYSTEM_PROMPT_PRESETS.find(
+      (preset) => preset.value !== 'custom' && preset.prompt === prompt,
+    )
+
+    settingStore.settings.systemPromptPreset = matchedPreset ? matchedPreset.value : 'custom'
   },
 )
 

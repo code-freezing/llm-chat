@@ -110,6 +110,10 @@ const { handleSend, handleRegenerate } = useChatSession({
   },
   getLastMessage: () => chatStore.getLastMessage(),
   createLocalMessage: (message) => message,
+  getSummary: () => chatStore.currentConversation?.summary || '',
+  setSummary: (summary) => {
+    chatStore.updateConversationSummary(chatStore.currentConversationId, summary)
+  },
 })
 
 const handleNewChat = () => {

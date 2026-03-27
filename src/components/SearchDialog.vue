@@ -60,6 +60,7 @@ import { useChatSession } from '@/composables/useChatSession'
 const searchText = ref('')
 const messages = ref([])
 const isLoading = ref(false)
+const summary = ref('')
 
 const aiMessage = 'Hi，我是你的 AI 小助手，有什么问题都可以问我。'
 
@@ -83,6 +84,10 @@ const { handleSend: sendMessage, handleRegenerate } = useChatSession({
     messages.value.push(message)
   },
   getLastMessage: () => messages.value[messages.value.length - 1],
+  getSummary: () => summary.value,
+  setSummary: (value) => {
+    summary.value = value
+  },
 })
 
 const handleSend = async () => {

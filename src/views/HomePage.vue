@@ -39,7 +39,7 @@
           <div class="feature-item">
             <el-icon class="feature-icon"><Setting /></el-icon>
             <h3>参数可调</h3>
-            <p>支持配置模型、流式输出、Tokens、Temperature、Top-P 和 Top-K。</p>
+            <p>支持配置模型、流式输出、Tokens 和系统提示词。</p>
             <p class="note" style="color: #3f7af1">适合作为可持续迭代的 AI Chat 前端基础版。</p>
           </div>
         </div>

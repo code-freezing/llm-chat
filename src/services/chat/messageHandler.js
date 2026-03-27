@@ -78,13 +78,11 @@ export const messageHandler = {
       // 每次只消费已经完整结束的 SSE 事件，未结束的尾巴继续留在 buffer 中。
       const { events, remaining } = extractSSEEvents(buffer)
       buffer = remaining
-
       for (const eventChunk of events) {
         const eventData = parseSSEEventData(eventChunk)
         // `[DONE]` 是很多兼容 OpenAI 的流式接口都会发送的结束标记，
         // 它不是 JSON 载荷，因此要在这里提前跳过。
         if (!eventData || eventData === DONE_EVENT) continue
-
         // 一个 SSE 事件可能被拆成多个 chunk，也可能包含多行 data，这里只在事件完整后再解析 JSON。
         const data = JSON.parse(eventData)
         const delta = data.choices?.[0]?.delta || {}
