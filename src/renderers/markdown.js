@@ -1,5 +1,13 @@
 import MarkdownIt from 'markdown-it'
-import hljs from 'highlight.js'
+import hljs from 'highlight.js/lib/core'
+import bash from 'highlight.js/lib/languages/bash'
+import css from 'highlight.js/lib/languages/css'
+import javascript from 'highlight.js/lib/languages/javascript'
+import json from 'highlight.js/lib/languages/json'
+import markdown from 'highlight.js/lib/languages/markdown'
+import plaintext from 'highlight.js/lib/languages/plaintext'
+import typescript from 'highlight.js/lib/languages/typescript'
+import xml from 'highlight.js/lib/languages/xml'
 import mdLinkAttributes from 'markdown-it-link-attributes'
 import { full as emoji } from 'markdown-it-emoji'
 import DOMPurify from 'dompurify'
@@ -8,6 +16,25 @@ import 'highlight.js/styles/atom-one-dark.css'
 import copyIcon from '@/assets/photo/复制.png'
 import darkIcon from '@/assets/photo/暗黑模式.png'
 import lightIcon from '@/assets/photo/明亮模式.png'
+
+// 聊天场景里高频出现的代码语言就这些，没必要把 highlight.js 的全部语言包都打进来。
+// 改成 core + 手动注册后，可以明显收缩 markdown 渲染相关的体积。
+hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('shell', bash)
+hljs.registerLanguage('sh', bash)
+hljs.registerLanguage('css', css)
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('js', javascript)
+hljs.registerLanguage('json', json)
+hljs.registerLanguage('markdown', markdown)
+hljs.registerLanguage('md', markdown)
+hljs.registerLanguage('plaintext', plaintext)
+hljs.registerLanguage('text', plaintext)
+hljs.registerLanguage('typescript', typescript)
+hljs.registerLanguage('ts', typescript)
+hljs.registerLanguage('html', xml)
+hljs.registerLanguage('xml', xml)
+hljs.registerLanguage('vue', xml)
 
 // 统一的 Markdown 渲染器。
 // 模型返回的文本最终都会先经过这里转成 HTML，再交给消息组件展示。

@@ -32,9 +32,9 @@
           </div>
           <div class="feature-item">
             <el-icon class="feature-icon"><Document /></el-icon>
-            <h3>附件支持</h3>
-            <p>支持图片和文件的前端预览，便于整理聊天时的输入内容。</p>
-            <p class="note">注意：当前版本不会解析文件内容，也不会作为模型上下文发送。</p>
+            <h3>Markdown 展示</h3>
+            <p>支持代码高亮、复制、链接和常用 Markdown 内容展示，适合技术问答场景。</p>
+            <p class="note">渲染链路已做安全净化，兼顾可读性和输出安全。</p>
           </div>
           <div class="feature-item">
             <el-icon class="feature-icon"><Setting /></el-icon>
@@ -61,9 +61,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { defineAsyncComponent, ref, onMounted, onUnmounted } from 'vue'
 import { Search, ChatLineRound, Document, Setting } from '@element-plus/icons-vue'
-import SearchDialog from '@/components/SearchDialog.vue'
+
+const SearchDialog = defineAsyncComponent(() => import('@/components/SearchDialog.vue'))
 
 // HomePage 是项目的入口页。
 // 它主要负责展示产品简介，并承载一个独立的搜索/提问弹层入口。

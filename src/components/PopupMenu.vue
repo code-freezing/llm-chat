@@ -27,15 +27,12 @@
                 <span :title="conversation.title">{{ formatTitle(conversation.title) }}</span>
               </div>
               <div class="item-actions">
-                <button
-                  class="action-btn"
-                  @click.stop="dialogEdit.openDialog(conversation.id, 'edit')"
-                >
+                <button class="action-btn" @click.stop="handleOpenDialog(conversation.id, 'edit')">
                   <img src="@/assets/photo/编辑.png" alt="edit" />
                 </button>
                 <button
                   class="action-btn"
-                  @click.stop="dialogEdit.openDialog(conversation.id, 'delete')"
+                  @click.stop="handleOpenDialog(conversation.id, 'delete')"
                 >
                   <img src="@/assets/photo/删除.png" alt="delete" />
                 </button>
@@ -45,22 +42,23 @@
         </div>
       </div>
     </Transition>
-
-    <DialogEdit ref="dialogEdit" />
+    <DialogEdit v-if="showDialogEdit" ref="dialogEdit" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { defineAsyncComponent, nextTick, ref, onMounted, onUnmounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
-import DialogEdit from '@/components/DialogEdit.vue'
 import { useChatStore } from '@/stores/chat'
+
+const DialogEdit = defineAsyncComponent(() => import('@/components/DialogEdit.vue'))
 
 // PopupMenu 是聊天页左上角的会话入口菜单。
 // 它不保存会话数据，只把 store 里的会话列表可视化，并提供切换/编辑/删除入口。
 const isVisible = ref(false)
 const chatStore = useChatStore()
 const dialogEdit = ref(null)
+const showDialogEdit = ref(false)
 
 // 通过点击外部区域关闭弹层，避免菜单一直停留在页面上。
 const handleClickOutside = (event) => {
@@ -91,6 +89,12 @@ const handleNewChat = () => {
 const handleSwitchChat = (conversationId) => {
   chatStore.switchConversation(conversationId)
   isVisible.value = false
+}
+
+const handleOpenDialog = async (conversationId, type) => {
+  showDialogEdit.value = true
+  await nextTick()
+  dialogEdit.value?.openDialog(conversationId, type)
 }
 
 // 历史会话标题较长时做截断，避免菜单横向被撑开。

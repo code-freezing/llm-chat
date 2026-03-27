@@ -7,10 +7,7 @@
         <div class="divider"></div>
         <div class="title-wrapper">
           <h1 class="chat-title">{{ formatTitle(currentTitle) }}</h1>
-          <button
-            class="edit-btn"
-            @click="dialogEdit.openDialog(chatStore.currentConversationId, 'edit')"
-          >
+          <button class="edit-btn" @click="handleEditConversation">
             <img src="@/assets/photo/编辑.png" alt="edit" />
           </button>
         </div>
@@ -18,7 +15,7 @@
 
       <div class="header-right">
         <el-tooltip content="设置" placement="top">
-          <button class="action-btn" @click="settingDrawer.openDrawer()">
+          <button class="action-btn" @click="handleOpenSettings">
             <img src="@/assets/photo/设置.png" alt="settings" />
           </button>
         </el-tooltip>
@@ -61,25 +58,26 @@
       <ChatInput :loading="isLoading" @send="handleSend" />
     </div>
 
-    <SettingsPanel ref="settingDrawer" />
-    <DialogEdit ref="dialogEdit" />
+    <SettingsPanel v-if="showSettingsPanel" ref="settingDrawer" />
+    <DialogEdit v-if="showDialogEdit" ref="dialogEdit" />
   </div>
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
 
 import ChatInput from '@/components/ChatInput.vue'
 import ChatMessage from '@/components/ChatMessage.vue'
-import DialogEdit from '@/components/DialogEdit.vue'
 import PopupMenu from '@/components/PopupMenu.vue'
-import SettingsPanel from '@/components/SettingsPanel.vue'
 import VirtualMessageList from '@/components/VirtualMessageList.vue'
 import { useAutoScroll } from '@/composables/useAutoScroll'
 import { useChatSession } from '@/composables/useChatSession'
 import { useChatStore } from '@/stores/chat'
+
+const SettingsPanel = defineAsyncComponent(() => import('@/components/SettingsPanel.vue'))
+const DialogEdit = defineAsyncComponent(() => import('@/components/DialogEdit.vue'))
 
 // ChatView 是聊天页的业务协调层。
 // 现在它主要负责页面展示和页面级交互，具体聊天流程交给组合式函数处理。
@@ -97,6 +95,8 @@ const currentTitle = computed(() => chatStore.currentConversation?.title || 'LLM
 const messagesContainer = ref(null)
 const settingDrawer = ref(null)
 const dialogEdit = ref(null)
+const showSettingsPanel = ref(false)
+const showDialogEdit = ref(false)
 
 useAutoScroll(currentMessages, messagesContainer)
 
@@ -128,6 +128,18 @@ const handleNewChat = () => {
 }
 
 const getMessageKey = (message) => message.id
+
+const handleOpenSettings = async () => {
+  showSettingsPanel.value = true
+  await nextTick()
+  settingDrawer.value?.openDrawer()
+}
+
+const handleEditConversation = async () => {
+  showDialogEdit.value = true
+  await nextTick()
+  dialogEdit.value?.openDialog(chatStore.currentConversationId, 'edit')
+}
 
 // 顶部标题空间有限，因此只做一个非常轻量的截断展示。
 const formatTitle = (title) => {

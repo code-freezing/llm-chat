@@ -1,6 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomePage from '@/views/HomePage.vue'
-import ChatView from '@/views/ChatView.vue'
 
 // 路由层只负责建立“地址 -> 页面组件”的映射关系。
 // 当前仓库只有首页和聊天页两个主要入口，因此路由结构保持很薄。
@@ -12,12 +10,12 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: HomePage,
+      component: () => import('@/views/HomePage.vue'),
     },
     {
       path: '/chat',
       name: 'chat',
-      component: ChatView,
+      component: () => import('@/views/ChatView.vue'),
     },
   ],
 })
