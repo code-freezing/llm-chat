@@ -3,12 +3,12 @@
     <div :style="{ height: `${topSpacerHeight}px` }"></div>
 
     <div
-      v-for="item in visibleItems"
-      :key="getItemKey(item)"
-      :ref="(element) => setItemElement(getItemKey(item), element)"
+      v-for="entry in visibleItems"
+      :key="entry.key"
+      :ref="(element) => setItemElement(entry.key, element)"
       class="virtual-item"
     >
-      <slot :item="item" :index="item.__virtualIndex"></slot>
+      <slot :item="entry.item" :index="entry.index"></slot>
     </div>
 
     <div :style="{ height: `${bottomSpacerHeight}px` }"></div>
@@ -43,6 +43,7 @@ const viewportHeight = ref(0)
 const heightCache = ref(new Map())
 const itemElements = new Map()
 const resizeObservers = new Map()
+let scrollFrameId = 0
 
 const getItemKey = (item) => props.itemKey(item)
 
@@ -57,52 +58,66 @@ const updateViewportHeight = () => {
   viewportHeight.value = containerRef.value?.clientHeight || 0
 }
 
-const getOffsetBefore = (endIndex) => {
-  let total = 0
-
-  for (let index = 0; index < endIndex; index += 1) {
-    total += getItemHeight(index)
-  }
-
-  return total
-}
-
-const getTotalHeight = () => {
+// 滚动过程中会频繁查询“某个索引之前累计了多高”。
+// 这里预先维护前缀高度表，避免每次滚动都重复做 O(n) 累加。
+const prefixHeights = computed(() => {
+  const offsets = [0]
   let total = 0
 
   for (let index = 0; index < props.items.length; index += 1) {
     total += getItemHeight(index)
+    offsets.push(total)
   }
 
-  return total
-}
+  return offsets
+})
 
-const getStartIndex = () => {
-  let offset = 0
+const getOffsetBefore = (endIndex) => prefixHeights.value[endIndex] ?? 0
 
-  for (let index = 0; index < props.items.length; index += 1) {
-    const itemHeight = getItemHeight(index)
-    if (offset + itemHeight > scrollTop.value) {
-      return index
+const getTotalHeight = () => prefixHeights.value[prefixHeights.value.length - 1] ?? 0
+
+// 前缀高度表准备好后，用二分查找定位视口对应的起始项，
+// 避免在滚动过程中一遍遍线性扫描整个消息数组。
+const findStartIndex = (targetOffset) => {
+  let left = 0
+  let right = props.items.length - 1
+  let answer = 0
+
+  while (left <= right) {
+    const middle = Math.floor((left + right) / 2)
+    const itemStart = getOffsetBefore(middle)
+    const itemEnd = getOffsetBefore(middle + 1)
+
+    if (itemStart <= targetOffset && itemEnd > targetOffset) {
+      return middle
     }
 
-    offset += itemHeight
+    if (itemStart < targetOffset) {
+      answer = middle
+      left = middle + 1
+    } else {
+      right = middle - 1
+    }
   }
 
-  return Math.max(props.items.length - 1, 0)
+  return answer
 }
 
-const getEndIndex = (startIndex) => {
-  let offset = getOffsetBefore(startIndex)
-  let index = startIndex
-  const viewportBottom = scrollTop.value + viewportHeight.value
+const findEndIndex = (targetOffset) => {
+  let left = 0
+  let right = props.items.length
 
-  while (index < props.items.length && offset < viewportBottom) {
-    offset += getItemHeight(index)
-    index += 1
+  while (left < right) {
+    const middle = Math.floor((left + right) / 2)
+
+    if (getOffsetBefore(middle) <= targetOffset) {
+      left = middle + 1
+    } else {
+      right = middle
+    }
   }
 
-  return index
+  return Math.min(left, props.items.length)
 }
 
 const visibleRange = computed(() => {
@@ -113,8 +128,8 @@ const visibleRange = computed(() => {
     }
   }
 
-  const startIndex = getStartIndex()
-  const endIndex = getEndIndex(startIndex)
+  const startIndex = findStartIndex(scrollTop.value)
+  const endIndex = findEndIndex(scrollTop.value + viewportHeight.value)
 
   return {
     start: Math.max(startIndex - props.overscan, 0),
@@ -125,10 +140,15 @@ const visibleRange = computed(() => {
 const visibleItems = computed(() => {
   return props.items
     .slice(visibleRange.value.start, visibleRange.value.end)
-    .map((item, offset) => ({
-      ...item,
-      __virtualIndex: visibleRange.value.start + offset,
-    }))
+    .map((item, offset) => {
+      const index = visibleRange.value.start + offset
+
+      return {
+        item,
+        index,
+        key: getItemKey(item),
+      }
+    })
 })
 
 const topSpacerHeight = computed(() => getOffsetBefore(visibleRange.value.start))
@@ -178,7 +198,18 @@ const setItemElement = (key, element) => {
 }
 
 const handleScroll = (event) => {
-  scrollTop.value = event.target.scrollTop
+  const nextScrollTop = event.target.scrollTop
+
+  // 滚动事件频率很高，这里收敛到一帧只更新一次响应式状态，
+  // 避免快速滚动时可见区计算和组件更新被触发过于频繁。
+  if (scrollFrameId) {
+    cancelAnimationFrame(scrollFrameId)
+  }
+
+  scrollFrameId = requestAnimationFrame(() => {
+    scrollTop.value = nextScrollTop
+    scrollFrameId = 0
+  })
 }
 
 const scrollToBottom = () => {
@@ -186,7 +217,7 @@ const scrollToBottom = () => {
 
   updateViewportHeight()
   scrollTop.value = Math.max(getTotalHeight() - viewportHeight.value, 0)
-  containerRef.value.scrollTop = containerRef.value.scrollHeight
+  containerRef.value.scrollTop = scrollTop.value
 }
 
 watch(
@@ -196,12 +227,38 @@ watch(
   },
 )
 
+watch(
+  () => props.items.map((item) => getItemKey(item)),
+  (keys) => {
+    const activeKeys = new Set(keys)
+
+    // 被移出列表的消息不需要继续保留高度缓存和 ResizeObserver。
+    // 这里在删消息、切会话后顺手清理，避免缓存长期累积。
+    itemElements.forEach((_, key) => {
+      if (activeKeys.has(key)) return
+
+      itemElements.delete(key)
+      resizeObservers.get(key)?.disconnect()
+      resizeObservers.delete(key)
+
+      if (heightCache.value.has(key)) {
+        const nextCache = new Map(heightCache.value)
+        nextCache.delete(key)
+        heightCache.value = nextCache
+      }
+    })
+  },
+)
+
 onMounted(() => {
   updateViewportHeight()
   window.addEventListener('resize', updateViewportHeight)
 })
 
 onUnmounted(() => {
+  if (scrollFrameId) {
+    cancelAnimationFrame(scrollFrameId)
+  }
   window.removeEventListener('resize', updateViewportHeight)
 
   resizeObservers.forEach((observer) => {

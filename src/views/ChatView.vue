@@ -58,8 +58,8 @@
       <ChatInput :loading="isLoading" @send="handleSend" />
     </div>
 
-    <SettingsPanel v-if="showSettingsPanel" ref="settingDrawer" />
-    <DialogEdit v-if="showDialogEdit" ref="dialogEdit" />
+    <SettingsPanel ref="settingDrawer" />
+    <DialogEdit ref="dialogEdit" />
   </div>
 </template>
 
@@ -95,8 +95,6 @@ const currentTitle = computed(() => chatStore.currentConversation?.title || 'LLM
 const messagesContainer = ref(null)
 const settingDrawer = ref(null)
 const dialogEdit = ref(null)
-const showSettingsPanel = ref(false)
-const showDialogEdit = ref(false)
 
 useAutoScroll(currentMessages, messagesContainer)
 
@@ -130,13 +128,11 @@ const handleNewChat = () => {
 const getMessageKey = (message) => message.id
 
 const handleOpenSettings = async () => {
-  showSettingsPanel.value = true
   await nextTick()
   settingDrawer.value?.openDrawer()
 }
 
 const handleEditConversation = async () => {
-  showDialogEdit.value = true
   await nextTick()
   dialogEdit.value?.openDialog(chatStore.currentConversationId, 'edit')
 }

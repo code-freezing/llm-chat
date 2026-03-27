@@ -17,6 +17,10 @@ import copyIcon from '@/assets/photo/复制.png'
 import darkIcon from '@/assets/photo/暗黑模式.png'
 import lightIcon from '@/assets/photo/明亮模式.png'
 
+const renderCodeBlock = (code, languageLabel = 'code') => {
+  return `<div class="code-block"><div class="code-header"><span class="code-lang">${languageLabel}</span><div class="code-actions"><button class="code-action-btn" data-action="copy" data-tooltip="复制"><img src="${copyIcon}" alt="copy" /></button><button class="code-action-btn" data-action="theme" data-tooltip="切换主题"><img src="${darkIcon}" alt="theme" data-light-icon="${lightIcon}" data-dark-icon="${darkIcon}" /></button></div></div><pre class="hljs"><code>${code}</code></pre></div>`
+}
+
 // 聊天场景里高频出现的代码语言就这些，没必要把 highlight.js 的全部语言包都打进来。
 // 改成 core + 手动注册后，可以明显收缩 markdown 渲染相关的体积。
 hljs.registerLanguage('bash', bash)
@@ -43,20 +47,25 @@ const md = new MarkdownIt({
   breaks: true,
   linkify: true,
   highlight: function (str, lang) {
+    const normalizedLang = lang?.trim().toLowerCase()
+
     // 如果识别到了受支持的语言，就交给 highlight.js 做语法高亮。
     // 这里还会额外拼出代码块头部，把复制和主题切换按钮一起注入。
-    if (lang && hljs.getLanguage(lang)) {
+    if (normalizedLang && hljs.getLanguage(normalizedLang)) {
       try {
-        const highlighted = hljs.highlight(str, { language: lang, ignoreIllegals: true }).value
-        return `<div class="code-block"><div class="code-header"><span class="code-lang">${lang}</span><div class="code-actions"><button class="code-action-btn" data-action="copy" data-tooltip="复制"><img src="${copyIcon}" alt="copy" /></button><button class="code-action-btn" data-action="theme" data-tooltip="切换主题"><img src="${darkIcon}" alt="theme" data-light-icon="${lightIcon}" data-dark-icon="${darkIcon}" /></button></div></div><pre class="hljs"><code>${highlighted}</code></pre></div>`
+        const highlighted = hljs.highlight(str, {
+          language: normalizedLang,
+          ignoreIllegals: true,
+        }).value
+        return renderCodeBlock(highlighted, normalizedLang)
       } catch {
         // 高亮失败时退回到安全转义后的普通代码块，避免整段渲染失败。
-        return `<pre class="hljs"><code>${md.utils.escapeHtml(str)}</code></pre>`
+        return renderCodeBlock(md.utils.escapeHtml(str), normalizedLang)
       }
     }
 
-    // 没有语言标记时，同样输出安全转义后的代码块。
-    return `<pre class="hljs"><code>${md.utils.escapeHtml(str)}</code></pre>`
+    // 没有语言标记时，也统一走带头部的代码卡片，避免不同代码块样式割裂。
+    return renderCodeBlock(md.utils.escapeHtml(str), 'code')
   },
 })
 

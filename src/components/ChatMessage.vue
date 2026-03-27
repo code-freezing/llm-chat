@@ -1,6 +1,6 @@
 <template>
   <div class="message-item" :class="{ 'is-mine': message.role === 'user' }">
-    <div class="content">
+    <div class="content" @click="handleContentClick">
       <div v-if="message.loading && message.role === 'assistant'" class="thinking-text">
         <img src="@/assets/photo/加载中.png" alt="loading" class="loading-icon" />
         <span>内容生成中...</span>
@@ -50,7 +50,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 
 import { renderMarkdown } from '@/renderers/markdown'
@@ -119,9 +119,9 @@ const handleRegenerate = () => {
 
 // 代码块内的复制和主题切换按钮并不是 Vue 组件事件。
 // 原因是代码块 HTML 来自 Markdown 渲染字符串，最终通过 v-html 插入页面。
-const handleCodeCopy = async (event) => {
-  const codeBlock = event.target.closest('.code-block')
-  const code = codeBlock.querySelector('code').textContent
+const handleCodeCopy = async (codeBlock) => {
+  const code = codeBlock?.querySelector('code')?.textContent
+  if (!code) return
 
   try {
     await navigator.clipboard.writeText(code)
@@ -130,10 +130,10 @@ const handleCodeCopy = async (event) => {
   }
 }
 
-const handleThemeToggle = (event) => {
-  const codeBlock = event.target.closest('.code-block')
-  const themeBtn = event.target.closest('[data-action="theme"]')
-  const themeIcon = themeBtn.querySelector('img')
+const handleThemeToggle = (codeBlock, themeButton) => {
+  const themeIcon = themeButton?.querySelector('img')
+  if (!codeBlock || !themeIcon) return
+
   const lightIcon = themeIcon.dataset.lightIcon
   const darkIcon = themeIcon.dataset.darkIcon
 
@@ -141,52 +141,25 @@ const handleThemeToggle = (event) => {
   themeIcon.src = codeBlock.classList.contains('dark-theme') ? lightIcon : darkIcon
 }
 
-let observer = null
+// 代码块按钮最终是通过 v-html 注入的原生 DOM。
+// 比起给每条消息都挂一个全局 MutationObserver，这里直接在当前消息根节点做事件委托更轻。
+const handleContentClick = (event) => {
+  const actionButton = event.target.closest('[data-action]')
+  if (!actionButton) return
 
-onMounted(() => {
-  // 因为代码块 DOM 不是在模板里直接声明的，所以需要在渲染后手动补事件绑定。
-  // 这里通过 MutationObserver 监听页面变化，一旦出现新的 code-block 就绑定按钮事件。
-  observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-      if (!mutation.addedNodes.length) return
+  const codeBlock = actionButton.closest('.code-block')
+  if (!codeBlock) return
 
-      const codeBlocks = document.querySelectorAll('.code-block')
-      codeBlocks.forEach((block) => {
-        const copyBtn = block.querySelector('[data-action="copy"]')
-        const themeBtn = block.querySelector('[data-action="theme"]')
+  const action = actionButton.dataset.action
+  if (action === 'copy') {
+    handleCodeCopy(codeBlock)
+    return
+  }
 
-        if (copyBtn && !copyBtn._hasListener) {
-          copyBtn.addEventListener('click', handleCodeCopy)
-          copyBtn._hasListener = true
-        }
-
-        if (themeBtn && !themeBtn._hasListener) {
-          themeBtn.addEventListener('click', handleThemeToggle)
-          themeBtn._hasListener = true
-        }
-      })
-    })
-  })
-
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-  })
-})
-
-onUnmounted(() => {
-  // 组件销毁时断开观察器，并清理已经挂上的按钮事件，避免内存泄漏。
-  observer?.disconnect()
-
-  const codeBlocks = document.querySelectorAll('.code-block')
-  codeBlocks.forEach((block) => {
-    const copyBtn = block.querySelector('[data-action="copy"]')
-    const themeBtn = block.querySelector('[data-action="theme"]')
-
-    copyBtn?.removeEventListener('click', handleCodeCopy)
-    themeBtn?.removeEventListener('click', handleThemeToggle)
-  })
-})
+  if (action === 'theme') {
+    handleThemeToggle(codeBlock, actionButton)
+  }
+}
 
 // 最终消息内容和 reasoning 内容都会先转成 HTML，再交给模板里的 v-html 渲染。
 const renderedContent = computed(() => renderMarkdown(props.message.content))
@@ -202,8 +175,19 @@ const renderedReasoning = computed(() => {
   display: flex;
   margin-bottom: 2rem;
 
+  &:not(.is-mine) {
+    .content {
+      width: 100%;
+    }
+  }
+
   &.is-mine {
     justify-content: flex-end;
+
+    .content {
+      width: auto;
+      max-width: min(100%, 680px);
+    }
 
     .content .bubble.markdown-body {
       background-color: #f4f4f4;
@@ -214,20 +198,23 @@ const renderedReasoning = computed(() => {
     max-width: 100%;
     min-width: 0;
     width: fit-content;
-    overflow: hidden;
+    overflow: visible;
 
     .reasoning-toggle {
       display: flex;
       align-items: center;
-      gap: 4px;
-      padding: 4px 8px;
-      margin-left: 16px;
-      margin-bottom: 8px;
+      gap: 6px;
+      padding: 0.4rem 0.75rem;
+      margin-left: 4px;
+      margin-bottom: 0.75rem;
       cursor: pointer;
       width: fit-content;
-      border-radius: 4px;
+      border-radius: 999px;
       background-color: #eef4ff;
-      transition: background-color 0.2s;
+      border: 1px solid #d7e6ff;
+      transition:
+        background-color 0.2s,
+        border-color 0.2s;
 
       img {
         width: 14px;
@@ -255,48 +242,138 @@ const renderedReasoning = computed(() => {
     }
 
     .reasoning {
-      margin-bottom: 8px;
-      margin-left: 16px;
-      padding: 0 16px;
-      background-color: #ffffff;
-      border-left: 3px solid #dfe2e5;
-      color: #8b8b8b;
-      font-size: 14px;
-      line-height: 1.6;
+      width: min(100%, 760px);
+      margin-bottom: 0.875rem;
+      padding: 1rem 1.125rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 1rem;
+      background: linear-gradient(180deg, #fbfcff 0%, #f7f9fc 100%);
+      color: #667085;
+    }
+
+    .bubble.markdown-body,
+    .reasoning.markdown-body {
+      display: block;
+      width: min(100%, 760px);
+      font-size: 0.98rem;
+      line-height: 1.82;
+      word-break: break-word;
+
+      :deep(> *:first-child) {
+        margin-top: 0;
+      }
+
+      :deep(> *:last-child) {
+        margin-bottom: 0;
+      }
+
+      :deep(h1),
+      :deep(h2),
+      :deep(h3),
+      :deep(h4) {
+        color: #111827;
+        letter-spacing: -0.02em;
+        line-height: 1.28;
+        font-weight: 700;
+        margin: 1.6rem 0 0.85rem;
+      }
+
+      :deep(h1) {
+        font-size: 1.9rem;
+      }
+
+      :deep(h2) {
+        font-size: 1.55rem;
+      }
+
+      :deep(h3) {
+        font-size: 1.2rem;
+      }
+
+      :deep(h4) {
+        font-size: 1.05rem;
+      }
 
       :deep(p) {
-        margin: 0;
+        margin: 0 0 0.9rem;
+      }
 
-        &:not(:last-child) {
-          margin-bottom: 8px;
+      :deep(ul),
+      :deep(ol) {
+        margin: 0.85rem 0;
+        padding-left: 1.5rem;
+      }
+
+      :deep(li) {
+        margin: 0.3rem 0;
+      }
+
+      :deep(li > p) {
+        margin-bottom: 0.35rem;
+      }
+
+      :deep(code:not(pre code)) {
+        font-family: var(--code-font-family);
+        padding: 0.18em 0.45em;
+        border-radius: 0.38rem;
+        background-color: #eef2f7;
+        color: #334155;
+        font-size: 0.92em;
+      }
+
+      :deep(blockquote) {
+        margin: 1rem 0;
+        padding: 0.85rem 1rem;
+        border-left: 3px solid #cbd5e1;
+        border-radius: 0 0.75rem 0.75rem 0;
+        background-color: #f8fafc;
+        color: #64748b;
+      }
+
+      :deep(table) {
+        display: block;
+        overflow-x: auto;
+        border-collapse: collapse;
+        margin: 1rem 0;
+        width: 100%;
+
+        th,
+        td {
+          border: 1px solid #e5e7eb;
+          padding: 0.65rem 0.8rem;
+          text-align: left;
+        }
+
+        th {
+          background-color: #f8fafc;
+          color: #111827;
+          font-weight: 600;
         }
       }
 
-      :deep(code) {
-        background-color: #f0f0f0;
-        padding: 2px 4px;
-        border-radius: 3px;
-        font-size: 0.9em;
-      }
-    }
+      :deep(a) {
+        color: #2563eb;
+        text-decoration: none;
+        text-underline-offset: 0.18em;
 
-    .bubble.markdown-body {
-      display: block;
-      width: 100%;
-      padding: 0.75rem 1rem;
-      background-color: #ffffff;
-      border-radius: 1rem;
-      font-size: 1rem;
-      line-height: 1.5;
-      word-break: break-word;
-      overflow: hidden;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+
+      // 普通图片要跟正文宽度适配，但代码块头部的操作图标需要单独走固定尺寸。
+      :deep(img) {
+        max-width: 100%;
+        border-radius: 0.75rem;
+      }
 
       :deep(.code-block) {
-        margin: 0.5rem 0;
+        margin: 1rem 0 1.15rem;
         border: 1px solid var(--code-border);
-        border-radius: 0.5rem;
+        border-radius: 0.9rem;
         overflow: hidden;
         width: 100%;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 
         > pre {
           margin: 0 !important;
@@ -306,27 +383,28 @@ const renderedReasoning = computed(() => {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 0.5rem 1rem;
+          padding: 0.7rem 1rem;
           background-color: var(--code-header-bg);
+          border-bottom: 1px solid var(--code-border);
 
           .code-lang {
-            font-size: 0.875rem;
+            font-size: 0.84rem;
             color: var(--code-lang-text);
             font-family: var(--code-font-family);
           }
 
           .code-actions {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.45rem;
 
             .code-action-btn {
-              width: 1.5rem;
-              height: 1.5rem;
+              width: 1.75rem;
+              height: 1.75rem;
               padding: 0;
               border: none;
               background: none;
               cursor: pointer;
-              border-radius: 4px;
+              border-radius: 999px;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -336,6 +414,9 @@ const renderedReasoning = computed(() => {
               img {
                 width: 1rem;
                 height: 1rem;
+                min-width: 1rem;
+                max-width: none;
+                border-radius: 0;
                 opacity: 1;
                 transition: filter 0.2s;
               }
@@ -368,74 +449,32 @@ const renderedReasoning = computed(() => {
 
         pre.hljs {
           margin: 0 !important;
-          padding: 1rem;
+          padding: 1rem 1.1rem;
           background-color: var(--code-block-bg);
           overflow-x: auto;
           white-space: pre;
+          font-size: 0.92rem;
+          line-height: 1.75;
 
           code {
             white-space: pre;
+            background: none;
+            padding: 0;
+            border-radius: 0;
+            color: inherit;
+            font-size: inherit;
           }
         }
       }
+    }
 
-      :deep(p) {
-        margin: 0;
-
-        &:not(:last-child) {
-          margin-bottom: 0.5rem;
-        }
-      }
-
-      :deep(code:not(pre code)) {
-        font-family: var(--code-font-family);
-        padding: 0.2em 0.4em;
-        border-radius: 0.25rem;
-        background-color: #f0f0f0;
-      }
-
-      :deep(ul),
-      :deep(ol) {
-        margin: 0.5rem 0;
-        padding-left: 1.5rem;
-      }
-
-      :deep(blockquote) {
-        margin: 0.5rem 0;
-        padding-left: 1rem;
-        border-left: 4px solid var(--border-color);
-        color: var(--text-color-secondary);
-      }
-
-      :deep(table) {
-        border-collapse: collapse;
-        margin: 0.5rem 0;
-        width: 100%;
-
-        th,
-        td {
-          border: 1px solid var(--border-color);
-          padding: 0.5rem;
-        }
-
-        th {
-          background-color: var(--code-header-bg);
-        }
-      }
-
-      :deep(a) {
-        color: #3f7af1;
-        text-decoration: none;
-
-        &:hover {
-          text-decoration: underline;
-        }
-      }
-
-      :deep(img) {
-        max-width: 100%;
-        border-radius: 0.5rem;
-      }
+    .bubble.markdown-body {
+      padding: 1rem 1.25rem 1.05rem;
+      background-color: #ffffff;
+      border: 1px solid #edf1f5;
+      border-radius: 1.25rem;
+      color: #1f2937;
+      box-shadow: 0 12px 36px rgba(15, 23, 42, 0.04);
     }
 
     .message-actions {

@@ -4,8 +4,6 @@
     :title="dialogType === 'edit' ? '编辑对话名称' : '确定删除对话？'"
     width="30%"
     :show-close="false"
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
   >
     <template v-if="dialogType === 'edit'">
       <el-input v-model="inputTitle" placeholder="请输入对话名称" maxlength="50" />

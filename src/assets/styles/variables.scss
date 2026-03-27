@@ -8,7 +8,9 @@
   --border-color: #c5c5c5;
 
   // 代码块相关变量，供 Markdown 渲染出的代码区域统一消费。
-  --code-font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+  --code-font-family:
+    ui-monospace, 'SF Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
   --code-lang-text: #000000;
   --code-block-bg: #fcfcfc;
   --code-header-bg: #f3f4f6;

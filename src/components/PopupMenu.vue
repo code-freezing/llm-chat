@@ -42,7 +42,7 @@
         </div>
       </div>
     </Transition>
-    <DialogEdit v-if="showDialogEdit" ref="dialogEdit" />
+    <DialogEdit ref="dialogEdit" />
   </div>
 </template>
 
@@ -58,7 +58,6 @@ const DialogEdit = defineAsyncComponent(() => import('@/components/DialogEdit.vu
 const isVisible = ref(false)
 const chatStore = useChatStore()
 const dialogEdit = ref(null)
-const showDialogEdit = ref(false)
 
 // 通过点击外部区域关闭弹层，避免菜单一直停留在页面上。
 const handleClickOutside = (event) => {
@@ -92,7 +91,6 @@ const handleSwitchChat = (conversationId) => {
 }
 
 const handleOpenDialog = async (conversationId, type) => {
-  showDialogEdit.value = true
   await nextTick()
   dialogEdit.value?.openDialog(conversationId, type)
 }

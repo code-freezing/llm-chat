@@ -9,7 +9,6 @@
           <div class="search-input">
             <el-icon class="search-icon"><Search /></el-icon>
             <input v-model="searchText" type="text" placeholder="搜索" readonly />
-            <div class="shortcut-key">Ctrl K</div>
           </div>
         </div>
         <a href="https://github.com/code-freezing" target="_blank" class="github-link">
@@ -21,30 +20,25 @@
     <main class="main-content">
       <div class="hero-section">
         <h1 class="title">欢迎使用 LLM Chat</h1>
-        <p class="description">
-          一个轻量、直接的 AI 聊天前端，支持多会话、流式响应和代码高亮展示。
-        </p>
         <div class="features">
           <div class="feature-item">
             <el-icon class="feature-icon"><ChatLineRound /></el-icon>
-            <h3>智能对话</h3>
-            <p>支持多轮上下文聊天，适合日常问答、代码交流和信息整理。</p>
+            <h3>多会话对话</h3>
+            <p>支持创建、切换、重命名和删除历史会话。</p>
           </div>
           <div class="feature-item">
             <el-icon class="feature-icon"><Document /></el-icon>
             <h3>Markdown 展示</h3>
-            <p>支持代码高亮、复制、链接和常用 Markdown 内容展示，适合技术问答场景。</p>
-            <p class="note">渲染链路已做安全净化，兼顾可读性和输出安全。</p>
+            <p>支持代码高亮、复制、链接、表格和常用 Markdown 内容展示。</p>
           </div>
           <div class="feature-item">
             <el-icon class="feature-icon"><Setting /></el-icon>
-            <h3>参数可调</h3>
-            <p>支持配置模型、流式输出、Tokens 和系统提示词。</p>
-            <p class="note" style="color: #3f7af1">适合作为可持续迭代的 AI Chat 前端基础版。</p>
+            <h3>参数配置</h3>
+            <p>支持模型切换、系统提示词、最大输出长度和上下文压缩。</p>
           </div>
         </div>
         <router-link to="/chat" class="start-button">
-          <span class="mirror-text">开始对话</span>
+          <span class="mirror-text">进入聊天</span>
           <div class="liquid"></div>
         </router-link>
       </div>
@@ -95,17 +89,10 @@ const handleClickOutside = (event) => {
   }
 }
 
-// 首页支持两个快捷关闭/打开动作：
 // - Esc 关闭搜索弹层
-// - Ctrl/Cmd + K 打开搜索弹层
 const handleKeydown = (event) => {
   if (event.key === 'Escape') {
     showSearchDialog.value = false
-  }
-
-  if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
-    event.preventDefault()
-    showSearchDialog.value = true
   }
 }
 
@@ -158,7 +145,7 @@ onUnmounted(() => {
 
     .search-container {
       flex: 1;
-      max-width: 280px;
+      max-width: 200px;
       min-width: 40px;
       margin-left: 16px;
 
@@ -192,16 +179,6 @@ onUnmounted(() => {
             color: #666666;
           }
         }
-
-        .shortcut-key {
-          flex-shrink: 0;
-          font-size: 12px;
-          color: #171717;
-          background-color: #fafafa;
-          padding: 2px 4px;
-          border-radius: 4px;
-          border: 1.5px solid #dfdfdf;
-        }
       }
     }
 
@@ -233,15 +210,7 @@ onUnmounted(() => {
       font-size: 48px;
       font-weight: 700;
       color: #1a1a1a;
-      margin-bottom: 24px;
-    }
-
-    .description {
-      font-size: 20px;
-      color: #666;
-      max-width: 600px;
-      margin: 0 auto 64px;
-      line-height: 1.5;
+      margin-bottom: 64px;
     }
 
     .features {

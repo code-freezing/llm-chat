@@ -11,6 +11,7 @@ export const DEFAULT_SETTINGS = {
   apiKey: '',
   systemPromptPreset: DEFAULT_SYSTEM_PROMPT_PRESET,
   systemPrompt: getSystemPromptByPreset(DEFAULT_SYSTEM_PROMPT_PRESET),
+  customSystemPrompt: '',
   stream: true,
   maxTokens: MODEL_OPTIONS[0].maxTokens,
 }

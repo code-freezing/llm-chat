@@ -74,7 +74,10 @@
       <div class="setting-item">
         <div class="setting-label">
           System Prompt
-          <el-tooltip content="这段提示词会作为 system 消息插入到每次对话请求最前面" placement="top">
+          <el-tooltip
+            content="这段提示词会作为 system 消息插入到每次对话请求最前面"
+            placement="top"
+          >
             <el-icon><QuestionFilled /></el-icon>
           </el-tooltip>
         </div>
@@ -82,8 +85,11 @@
           v-model="settingStore.settings.systemPrompt"
           type="textarea"
           :rows="6"
+          :disabled="!isCustomPreset"
           resize="vertical"
-          placeholder="请输入系统提示词"
+          :placeholder="
+            isCustomPreset ? '请输入系统提示词' : '当前为预设提示词，切换到“自定义”后才可编辑'
+          "
         />
       </div>
 
@@ -121,6 +127,7 @@ import { ref, watch, computed } from 'vue'
 import { useSettingStore } from '@/stores/setting'
 import { MODEL_OPTIONS } from '@/constants/models'
 import {
+  DEFAULT_SYSTEM_PROMPT_PRESET,
   SYSTEM_PROMPT_PRESETS,
   getSystemPromptByPreset,
 } from '@/constants/systemPrompts'
@@ -131,6 +138,7 @@ import { QuestionFilled } from '@element-plus/icons-vue'
 const settingStore = useSettingStore()
 const visible = ref(false)
 let isUpdatingPromptFromPreset = false
+const isCustomPreset = computed(() => settingStore.settings.systemPromptPreset === 'custom')
 
 // 不同模型支持的最大 tokens 上限不同，
 // 因此这里根据当前选中的模型动态限制 Max Tokens 控件的最大值。
@@ -153,31 +161,63 @@ watch(
   },
 )
 
+// 自定义 prompt 要和“当前真正发给模型的 system prompt”分开保存。
+// 这样用户切换到别的预设后，再切回“自定义”时，仍然能恢复自己写过的内容。
+const normalizeSystemPromptSettings = () => {
+  if (typeof settingStore.settings.customSystemPrompt !== 'string') {
+    settingStore.settings.customSystemPrompt = ''
+  }
+
+  const currentPreset = settingStore.settings.systemPromptPreset
+  const customPrompt = settingStore.settings.customSystemPrompt.trim()
+
+  // 恢复时优先尊重“用户上次明确选择的预设”。
+  // 只有当上次选择本身就是 custom 时，才去读取 customSystemPrompt。
+  if (currentPreset === 'custom' && customPrompt) {
+    settingStore.settings.systemPrompt = settingStore.settings.customSystemPrompt
+    return
+  }
+
+  // 如果上次选的是 custom 但内容为空，就回退到通用助手，
+  // 避免界面停留在“自定义”却没有任何有效内容。
+  if (currentPreset === 'custom') {
+    settingStore.settings.systemPromptPreset = DEFAULT_SYSTEM_PROMPT_PRESET
+    settingStore.settings.systemPrompt = getSystemPromptByPreset(DEFAULT_SYSTEM_PROMPT_PRESET)
+    return
+  }
+
+  // 非 custom 预设直接恢复对应的固定提示词。
+  settingStore.settings.systemPrompt = getSystemPromptByPreset(currentPreset)
+}
+
+normalizeSystemPromptSettings()
+
 // 角色预设是“填充 system prompt 的快捷入口”。
-// 用户切换预设时，直接把对应提示词写入可编辑文本框，后续仍然允许用户继续手动修改。
+// 非自定义预设直接回填固定 prompt；切回自定义时恢复之前单独保存的自定义内容。
 watch(
   () => settingStore.settings.systemPromptPreset,
   (presetValue) => {
-    if (presetValue === 'custom') return
-
     isUpdatingPromptFromPreset = true
-    settingStore.settings.systemPrompt = getSystemPromptByPreset(presetValue)
+
+    if (presetValue === 'custom') {
+      settingStore.settings.systemPrompt = settingStore.settings.customSystemPrompt
+    } else {
+      settingStore.settings.systemPrompt = getSystemPromptByPreset(presetValue)
+    }
+
     isUpdatingPromptFromPreset = false
   },
 )
 
-// 用户手动改写 system prompt 后，界面上的角色预设也要同步切到“自定义”，
-// 避免下拉框仍然显示某个预设名称，但实际发送给模型的 prompt 已经变了。
+// System Prompt 文本框只允许在“自定义”模式下修改。
+// 这里把用户输入同步回 customSystemPrompt，供后续切回“自定义”时恢复。
 watch(
   () => settingStore.settings.systemPrompt,
   (prompt) => {
     if (isUpdatingPromptFromPreset) return
+    if (!isCustomPreset.value) return
 
-    const matchedPreset = SYSTEM_PROMPT_PRESETS.find(
-      (preset) => preset.value !== 'custom' && preset.prompt === prompt,
-    )
-
-    settingStore.settings.systemPromptPreset = matchedPreset ? matchedPreset.value : 'custom'
+    settingStore.settings.customSystemPrompt = prompt
   },
 )
 
