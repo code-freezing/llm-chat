@@ -30,11 +30,15 @@
       </div>
     </div>
 
-    <div class="messages-container" ref="messagesContainer">
-      <template v-if="currentMessages.length > 0">
+    <VirtualMessageList
+      v-if="currentMessages.length > 0"
+      ref="messagesContainer"
+      class="messages-container"
+      :items="currentMessages"
+      :item-key="getMessageKey"
+    >
+      <template #default="{ item: message, index }">
         <ChatMessage
-          v-for="(message, index) in currentMessages"
-          :key="message.id"
           :message="message"
           :is-last-assistant-message="
             index === currentMessages.length - 1 && message.role === 'assistant'
@@ -42,7 +46,9 @@
           @regenerate="handleRegenerate"
         />
       </template>
-      <div v-else class="empty-state">
+    </VirtualMessageList>
+    <div v-else class="messages-container">
+      <div class="empty-state">
         <div class="empty-content">
           <img src="@/assets/photo/对话.png" alt="chat" class="empty-icon" />
           <h2>开始对话吧</h2>
@@ -70,6 +76,7 @@ import ChatMessage from '@/components/ChatMessage.vue'
 import DialogEdit from '@/components/DialogEdit.vue'
 import PopupMenu from '@/components/PopupMenu.vue'
 import SettingsPanel from '@/components/SettingsPanel.vue'
+import VirtualMessageList from '@/components/VirtualMessageList.vue'
 import { useAutoScroll } from '@/composables/useAutoScroll'
 import { useChatSession } from '@/composables/useChatSession'
 import { useChatStore } from '@/stores/chat'
@@ -119,6 +126,8 @@ const { handleSend, handleRegenerate } = useChatSession({
 const handleNewChat = () => {
   chatStore.createConversation()
 }
+
+const getMessageKey = (message) => message.id
 
 // 顶部标题空间有限，因此只做一个非常轻量的截断展示。
 const formatTitle = (title) => {

@@ -15,43 +15,49 @@
       </div>
     </div>
 
-    <div class="dialog-content" ref="messagesContainer">
-      <template v-if="messages.length === 0">
-        <div class="initial-message">
-          {{ aiMessage }}
-        </div>
+    <div v-if="messages.length === 0" class="dialog-content">
+      <div class="initial-message">
+        {{ aiMessage }}
+      </div>
 
-        <div class="suggested-prompts">
-          <div class="prompt-title">建议提示词</div>
-          <div class="prompt-list">
-            <button
-              v-for="prompt in suggestedPrompts"
-              :key="prompt"
-              class="prompt-item"
-              @click="searchText = prompt"
-            >
-              {{ prompt }}
-            </button>
-          </div>
+      <div class="suggested-prompts">
+        <div class="prompt-title">建议提示词</div>
+        <div class="prompt-list">
+          <button
+            v-for="prompt in suggestedPrompts"
+            :key="prompt"
+            class="prompt-item"
+            @click="searchText = prompt"
+          >
+            {{ prompt }}
+          </button>
         </div>
-      </template>
+      </div>
+    </div>
 
-      <template v-else>
+    <VirtualMessageList
+      v-else
+      ref="messagesContainer"
+      class="dialog-content"
+      :items="messages"
+      :item-key="getMessageKey"
+      :estimate-size="220"
+    >
+      <template #default="{ item: message, index }">
         <ChatMessage
-          v-for="(message, index) in messages"
-          :key="message.id"
           :message="message"
           :is-last-assistant-message="index === messages.length - 1 && message.role === 'assistant'"
           @regenerate="handleRegenerate"
         />
       </template>
-    </div>
+    </VirtualMessageList>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import ChatMessage from './ChatMessage.vue'
+import VirtualMessageList from './VirtualMessageList.vue'
 import { useAutoScroll } from '@/composables/useAutoScroll'
 import { useChatSession } from '@/composables/useChatSession'
 
@@ -95,8 +101,10 @@ const handleSend = async () => {
 
   const text = searchText.value.trim()
   searchText.value = ''
-  await sendMessage({ text, files: [] })
+  await sendMessage({ text })
 }
+
+const getMessageKey = (message) => message.id
 </script>
 
 <style lang="scss" scoped>

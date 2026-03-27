@@ -1,19 +1,6 @@
 <template>
   <div class="message-item" :class="{ 'is-mine': message.role === 'user' }">
     <div class="content">
-      <div v-if="message.files && message.files.length > 0" class="files-container">
-        <div v-for="file in message.files" :key="file.url" class="file-item">
-          <div v-if="file.type === 'image'" class="image-preview">
-            <img :src="file.url" :alt="file.name" />
-          </div>
-          <div v-else class="file-preview">
-            <el-icon><Document /></el-icon>
-            <span class="file-name">{{ file.name }}</span>
-            <span class="file-size">{{ (file.size / 1024).toFixed(1) }}KB</span>
-          </div>
-        </div>
-      </div>
-
       <div v-if="message.loading && message.role === 'assistant'" class="thinking-text">
         <img src="@/assets/photo/加载中.png" alt="loading" class="loading-icon" />
         <span>内容生成中...</span>
@@ -64,7 +51,7 @@
 
 <script setup>
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { Document, ArrowDown } from '@element-plus/icons-vue'
+import { ArrowDown } from '@element-plus/icons-vue'
 
 import { renderMarkdown } from '@/renderers/markdown'
 import copyIcon from '@/assets/photo/复制.png'
@@ -77,7 +64,7 @@ import regenerateIcon from '@/assets/photo/重新生成.png'
 import thinkingIcon from '@/assets/photo/深度思考.png'
 
 // ChatMessage 负责把消息对象渲染成最终可见的聊天气泡。
-// 除了普通内容展示外，它还承担 reasoning 展示、附件预览和消息操作按钮。
+// 除了普通内容展示外，它还承担 reasoning 展示和消息操作按钮。
 const props = defineProps({
   message: {
     type: Object,
@@ -549,48 +536,6 @@ const renderedReasoning = computed(() => {
   }
   to {
     transform: rotate(360deg);
-  }
-}
-
-.files-container {
-  margin-bottom: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-
-  .file-item {
-    .image-preview {
-      max-width: 200px;
-      border-radius: 8px;
-      overflow: hidden;
-
-      img {
-        display: block;
-        max-width: 100%;
-        height: auto;
-      }
-    }
-
-    .file-preview {
-      padding: 8px;
-      background-color: #f4f4f5;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-
-      .file-name {
-        max-width: 120px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .file-size {
-        color: #909399;
-        font-size: 12px;
-      }
-    }
   }
 }
 </style>

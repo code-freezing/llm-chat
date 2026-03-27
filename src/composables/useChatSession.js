@@ -174,7 +174,7 @@ export const useChatSession = ({
     try {
       // 先写入用户消息，再补一条空的 assistant 消息占位。
       // 这样无论接口是流式还是非流式，都能统一回填到最后一条助手消息。
-      addMessage(buildMessage(messageHandler.formatMessage('user', messageContent.text, '', messageContent.files)))
+      addMessage(buildMessage(messageHandler.formatMessage('user', messageContent.text)))
       await compressConversation()
       addMessage(buildMessage(messageHandler.formatMessage('assistant', '', '')))
 
@@ -218,7 +218,7 @@ export const useChatSession = ({
     if (!lastTurn) return
 
     messages.value.splice(lastTurn.startIndex, lastTurn.deleteCount)
-    await handleSend({ text: lastTurn.userMessage.content, files: lastTurn.userMessage.files || [] })
+    await handleSend({ text: lastTurn.userMessage.content })
   }
 
   return {

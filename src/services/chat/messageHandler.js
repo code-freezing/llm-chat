@@ -46,12 +46,11 @@ const calculateSpeed = (completionTokens, startTime) => {
 
 export const messageHandler = {
   // 统一构造消息对象，让不同来源的消息都保持一致结构。
-  formatMessage(role, content, reasoning_content = '', files = []) {
+  formatMessage(role, content, reasoning_content = '') {
     return {
       role,
       content,
       reasoning_content,
-      files,
       completion_tokens: 0,
       speed: 0,
       loading: false,
