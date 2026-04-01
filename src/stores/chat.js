@@ -6,8 +6,7 @@ const DEFAULT_CONVERSATION_TITLE = '日常问答'
 export const useChatStore = defineStore(
   'llm-chat',
   () => {
-    // conversations 是聊天域的核心数据源。
-    // 历史会话列表、当前会话和当前消息，最终都从这里派生。
+    // conversations 是聊天域的核心数据源，历史会话列表、当前会话和当前消息最终都从这里派生。
     const conversations = ref([
       {
         id: '1',
@@ -21,8 +20,7 @@ export const useChatStore = defineStore(
     const currentConversationId = ref('1')
     const isLoading = ref(false)
 
-    // 当前会话通过当前 id 从 conversations 中派生出来，
-    // 这样可以避免单独维护一份 currentConversation 对象导致的状态不同步。
+    // 当前会话通过当前 id 从 conversations 中派生出来，这样可以避免单独维护一份 currentConversation 对象导致的状态不同步。
     const currentConversation = computed(() => {
       return conversations.value.find(
         (conversation) => conversation.id === currentConversationId.value,
@@ -32,6 +30,7 @@ export const useChatStore = defineStore(
     // 页面最常消费的是当前消息列表，因此单独暴露一个衍生值给页面层使用。
     const currentMessages = computed(() => currentConversation.value?.messages || [])
 
+    // 新会话插入到列表头部，方便菜单直接把“最近使用”放在最前面。
     const createConversation = () => {
       const newConversation = {
         id: Date.now().toString(),
@@ -52,8 +51,7 @@ export const useChatStore = defineStore(
     const addMessage = (message) => {
       if (!currentConversation.value) return
 
-      // 每条消息入库时统一补充本地 id 和时间戳，
-      // 这样 UI 层可以默认认为消息具备完整基础字段。
+      // 每条消息入库时统一补充本地 id 和时间戳，这样 UI 层可以默认认为消息具备完整基础字段。
       currentConversation.value.messages.push({
         id: Date.now(),
         timestamp: new Date().toISOString(),
@@ -68,8 +66,7 @@ export const useChatStore = defineStore(
     const updateLastMessage = (content, reasoning_content, completion_tokens, speed) => {
       if (!currentConversation.value?.messages.length) return
 
-      // 当前项目采用“先插入空 assistant 消息，再持续回填”的回复策略，
-      // 因此更新助手回复时，直接改最后一条消息即可。
+      // 当前项目采用“先插入空 assistant 消息，再持续回填”的回复策略，因此更新助手回复时，直接改最后一条消息即可。
       const lastMessage =
         currentConversation.value.messages[currentConversation.value.messages.length - 1]
 
@@ -94,6 +91,7 @@ export const useChatStore = defineStore(
     }
 
     const updateConversationSummary = (conversationId, summary) => {
+      // 摘要与会话本身绑定，切换会话时可以独立恢复各自的长上下文压缩结果。
       const conversation = conversations.value.find((item) => item.id === conversationId)
       if (conversation) {
         conversation.summary = summary
@@ -106,8 +104,7 @@ export const useChatStore = defineStore(
 
       conversations.value.splice(index, 1)
 
-      // 如果删完后没有任何会话，就自动补一个默认会话，
-      // 避免页面进入没有当前会话可渲染的状态。
+      // 如果删完后没有任何会话，就自动补一个默认会话，避免页面进入没有当前会话可渲染的状态。
       if (conversations.value.length === 0) {
         createConversation()
         return

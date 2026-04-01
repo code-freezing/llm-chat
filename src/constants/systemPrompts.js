@@ -1,5 +1,4 @@
-// 角色预设集中放在这里，避免系统提示词散落在组件里写死。
-// `prompt` 才是真正发送给模型的内容，`label` 只用于界面展示。
+// 角色预设集中放在这里，避免系统提示词散落在组件里写死；`prompt` 才是真正发送给模型的内容，`label` 只用于界面展示。
 export const SYSTEM_PROMPT_PRESETS = [
   {
     label: '自定义',
@@ -34,6 +33,7 @@ export const SYSTEM_PROMPT_PRESETS = [
 
 export const DEFAULT_SYSTEM_PROMPT_PRESET = 'general-assistant'
 
+// 根据预设值拿到真正发送给模型的提示词，未命中时返回空串，让上层决定是否回退到默认行为。
 export const getSystemPromptByPreset = (presetValue) => {
   const preset = SYSTEM_PROMPT_PRESETS.find((item) => item.value === presetValue)
   return preset ? preset.prompt : ''

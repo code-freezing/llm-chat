@@ -1,8 +1,10 @@
 <template>
+  <!-- 设置面板直接映射到 setting store，用户修改后立即生效。 -->
   <el-drawer v-model="visible" title="设置" direction="rtl" size="350px">
     <div class="setting-container">
       <div class="setting-item">
         <div class="setting-label">Model</div>
+        <!-- 模型列表来自常量配置，避免在模板里硬编码选项。 -->
         <el-select
           v-model="settingStore.settings.model"
           class="model-select"
@@ -133,15 +135,13 @@ import {
 } from '@/constants/systemPrompts'
 import { QuestionFilled } from '@element-plus/icons-vue'
 
-// SettingsPanel 直接操作 setting store。
-// 用户在这里改动的模型和参数，会直接影响后续聊天请求的请求体。
+// SettingsPanel 直接操作 setting store，用户在这里改动的模型和参数会直接影响后续聊天请求的请求体。
 const settingStore = useSettingStore()
 const visible = ref(false)
 let isUpdatingPromptFromPreset = false
 const isCustomPreset = computed(() => settingStore.settings.systemPromptPreset === 'custom')
 
-// 不同模型支持的最大 tokens 上限不同，
-// 因此这里根据当前选中的模型动态限制 Max Tokens 控件的最大值。
+// 不同模型支持的最大 tokens 上限不同，因此这里根据当前选中的模型动态限制 Max Tokens 控件的最大值。
 const currentMaxTokens = computed(() => {
   const selectedModel = MODEL_OPTIONS.find((option) => option.value === settingStore.settings.model)
   return selectedModel ? selectedModel.maxTokens : 4096
@@ -161,8 +161,7 @@ watch(
   },
 )
 
-// 自定义 prompt 要和“当前真正发给模型的 system prompt”分开保存。
-// 这样用户切换到别的预设后，再切回“自定义”时，仍然能恢复自己写过的内容。
+// 自定义 prompt 要和“当前真正发给模型的 system prompt”分开保存，这样用户切换到别的预设后，再切回“自定义”时，仍然能恢复自己写过的内容。
 const normalizeSystemPromptSettings = () => {
   if (typeof settingStore.settings.customSystemPrompt !== 'string') {
     settingStore.settings.customSystemPrompt = ''
@@ -171,15 +170,13 @@ const normalizeSystemPromptSettings = () => {
   const currentPreset = settingStore.settings.systemPromptPreset
   const customPrompt = settingStore.settings.customSystemPrompt.trim()
 
-  // 恢复时优先尊重“用户上次明确选择的预设”。
-  // 只有当上次选择本身就是 custom 时，才去读取 customSystemPrompt。
+  // 恢复时优先尊重“用户上次明确选择的预设”，只有当上次选择本身就是 custom 时，才去读取 customSystemPrompt。
   if (currentPreset === 'custom' && customPrompt) {
     settingStore.settings.systemPrompt = settingStore.settings.customSystemPrompt
     return
   }
 
-  // 如果上次选的是 custom 但内容为空，就回退到通用助手，
-  // 避免界面停留在“自定义”却没有任何有效内容。
+  // 如果上次选的是 custom 但内容为空，就回退到通用助手，避免界面停留在“自定义”却没有任何有效内容。
   if (currentPreset === 'custom') {
     settingStore.settings.systemPromptPreset = DEFAULT_SYSTEM_PROMPT_PRESET
     settingStore.settings.systemPrompt = getSystemPromptByPreset(DEFAULT_SYSTEM_PROMPT_PRESET)
@@ -192,8 +189,7 @@ const normalizeSystemPromptSettings = () => {
 
 normalizeSystemPromptSettings()
 
-// 角色预设是“填充 system prompt 的快捷入口”。
-// 非自定义预设直接回填固定 prompt；切回自定义时恢复之前单独保存的自定义内容。
+// 角色预设是“填充 system prompt 的快捷入口”，非自定义预设直接回填固定 prompt；切回自定义时恢复之前单独保存的自定义内容。
 watch(
   () => settingStore.settings.systemPromptPreset,
   (presetValue) => {
@@ -209,8 +205,7 @@ watch(
   },
 )
 
-// System Prompt 文本框只允许在“自定义”模式下修改。
-// 这里把用户输入同步回 customSystemPrompt，供后续切回“自定义”时恢复。
+// System Prompt 文本框只允许在“自定义”模式下修改，这里把用户输入同步回 customSystemPrompt，供后续切回“自定义”时恢复。
 watch(
   () => settingStore.settings.systemPrompt,
   (prompt) => {
@@ -233,6 +228,7 @@ defineExpose({
 
 <style lang="scss" scoped>
 .setting-container {
+  // 抽屉内部整体留白比页面表单更大，减轻侧边栏压迫感。
   padding: 20px;
   color: #27272a;
 }
@@ -270,6 +266,7 @@ defineExpose({
   }
 
   .setting-control {
+    // 滑块和数字输入框并排，分别满足拖拽和精确输入两种操作习惯。
     display: flex;
     align-items: center;
     gap: 16px;

@@ -1,11 +1,14 @@
 <template>
+  <!-- 单条消息最外层，根据 role 判断是否使用“我发送的消息”样式。 -->
   <div class="message-item" :class="{ 'is-mine': message.role === 'user' }">
     <div class="content" @click="handleContentClick">
+      <!-- assistant 占位消息在真正内容回来前先展示加载态。 -->
       <div v-if="message.loading && message.role === 'assistant'" class="thinking-text">
         <img src="@/assets/photo/加载中.png" alt="loading" class="loading-icon" />
         <span>内容生成中...</span>
       </div>
 
+      <!-- reasoning_content 存在时，允许用户单独折叠或展开推理过程。 -->
       <div v-if="message.reasoning_content" class="reasoning-toggle" @click="toggleReasoning">
         <img :src="thinkingIcon" alt="thinking" />
         <span>深度思考</span>
@@ -20,8 +23,10 @@
         v-html="renderedReasoning"
       ></div>
 
+      <!-- 正文始终走统一的 Markdown 渲染链路。 -->
       <div class="bubble markdown-body" v-html="renderedContent"></div>
 
+      <!-- 只有 assistant 最终回复才展示操作栏。 -->
       <div v-if="message.role === 'assistant' && message.loading === false" class="message-actions">
         <button
           v-if="isLastAssistantMessage"
@@ -63,8 +68,7 @@ import dislikeActiveIcon from '@/assets/photo/踩2.png'
 import regenerateIcon from '@/assets/photo/重新生成.png'
 import thinkingIcon from '@/assets/photo/深度思考.png'
 
-// ChatMessage 负责把消息对象渲染成最终可见的聊天气泡。
-// 除了普通内容展示外，它还承担 reasoning 展示和消息操作按钮。
+// ChatMessage 负责把消息对象渲染成最终可见的聊天气泡，除了普通内容展示外，它还承担 reasoning 展示和消息操作按钮。
 const props = defineProps({
   message: {
     type: Object,
@@ -78,13 +82,13 @@ const props = defineProps({
 
 const emit = defineEmits(['regenerate'])
 
+// 这些局部状态只影响当前这条消息的 UI 展示，不回写到全局 store。
 const isLiked = ref(false)
 const isDisliked = ref(false)
 const isCopied = ref(false)
 const isReasoningExpanded = ref(true)
 
-// 支持 reasoning 的模型会返回两段内容：
-// 一段是推理过程，一段是最终回答，这里允许用户单独展开或折叠推理内容。
+// 支持 reasoning 的模型会返回两段内容：一段是推理过程，一段是最终回答，这里允许用户单独展开或折叠推理内容。
 const toggleReasoning = () => {
   isReasoningExpanded.value = !isReasoningExpanded.value
 }
@@ -104,11 +108,13 @@ const handleCopy = async () => {
 }
 
 const handleLike = () => {
+  // 点赞和点踩互斥，保证同一时间只保留一种反馈状态。
   if (isDisliked.value) isDisliked.value = false
   isLiked.value = !isLiked.value
 }
 
 const handleDislike = () => {
+  // 与点赞保持互斥。
   if (isLiked.value) isLiked.value = false
   isDisliked.value = !isDisliked.value
 }
@@ -117,8 +123,7 @@ const handleRegenerate = () => {
   emit('regenerate')
 }
 
-// 代码块内的复制和主题切换按钮并不是 Vue 组件事件。
-// 原因是代码块 HTML 来自 Markdown 渲染字符串，最终通过 v-html 插入页面。
+// 代码块内的复制和主题切换按钮并不是 Vue 组件事件，因为代码块 HTML 来自 Markdown 渲染字符串，最终通过 v-html 插入页面。
 const handleCodeCopy = async (codeBlock) => {
   const code = codeBlock?.querySelector('code')?.textContent
   if (!code) return
@@ -131,6 +136,7 @@ const handleCodeCopy = async (codeBlock) => {
 }
 
 const handleThemeToggle = (codeBlock, themeButton) => {
+  // 代码块明暗主题只影响当前块本身，不切换全局站点主题。
   const themeIcon = themeButton?.querySelector('img')
   if (!codeBlock || !themeIcon) return
 
@@ -141,8 +147,7 @@ const handleThemeToggle = (codeBlock, themeButton) => {
   themeIcon.src = codeBlock.classList.contains('dark-theme') ? lightIcon : darkIcon
 }
 
-// 代码块按钮最终是通过 v-html 注入的原生 DOM。
-// 比起给每条消息都挂一个全局 MutationObserver，这里直接在当前消息根节点做事件委托更轻。
+// 代码块按钮最终是通过 v-html 注入的原生 DOM，比起给每条消息都挂一个全局 MutationObserver，这里直接在当前消息根节点做事件委托更轻。
 const handleContentClick = (event) => {
   const actionButton = event.target.closest('[data-action]')
   if (!actionButton) return
@@ -176,12 +181,14 @@ const renderedReasoning = computed(() => {
   margin-bottom: 2rem;
 
   &:not(.is-mine) {
+    // assistant 消息默认占满容器宽度，方便内部 Markdown 自适应布局。
     .content {
       width: 100%;
     }
   }
 
   &.is-mine {
+    // 用户消息整体右对齐，形成经典 IM 气泡布局。
     justify-content: flex-end;
 
     .content {
@@ -190,6 +197,7 @@ const renderedReasoning = computed(() => {
     }
 
     .content .bubble.markdown-body {
+      // 用户消息单独换一层浅灰底色，和 assistant 消息区分。
       background-color: #f4f4f4;
     }
   }
@@ -242,6 +250,7 @@ const renderedReasoning = computed(() => {
     }
 
     .reasoning {
+      // reasoning 用更轻的灰蓝色卡片承接，弱化信息层级但保持可读。
       width: min(100%, 760px);
       margin-bottom: 0.875rem;
       padding: 1rem 1.125rem;
@@ -313,6 +322,7 @@ const renderedReasoning = computed(() => {
       }
 
       :deep(code:not(pre code)) {
+        // 行内代码保持轻量高亮，不和块级代码样式混淆。
         font-family: var(--code-font-family);
         padding: 0.18em 0.45em;
         border-radius: 0.38rem;
@@ -368,6 +378,7 @@ const renderedReasoning = computed(() => {
       }
 
       :deep(.code-block) {
+        // 代码块外壳样式与 markdown.js 注入的结构保持一一对应。
         margin: 1rem 0 1.15rem;
         border: 1px solid var(--code-border);
         border-radius: 0.9rem;
@@ -469,6 +480,7 @@ const renderedReasoning = computed(() => {
     }
 
     .bubble.markdown-body {
+      // 正文气泡维持较强可读性和轻量浮层感。
       padding: 1rem 1.25rem 1.05rem;
       background-color: #ffffff;
       border: 1px solid #edf1f5;
@@ -478,6 +490,7 @@ const renderedReasoning = computed(() => {
     }
 
     .message-actions {
+      // 操作栏贴在 assistant 气泡下方，保持弱存在感但可快速访问。
       display: flex;
       gap: 0.5rem;
       margin-top: 0.5rem;
@@ -554,6 +567,7 @@ const renderedReasoning = computed(() => {
   }
 
   .thinking-text {
+    // 加载态不做骨架屏，只保留一条简洁状态提示。
     display: flex;
     align-items: center;
     gap: 8px;

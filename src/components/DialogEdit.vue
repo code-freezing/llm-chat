@@ -1,4 +1,5 @@
 <template>
+  <!-- 一个弹窗复用编辑和删除两种场景，减少重复组件。 -->
   <el-dialog
     v-model="dialogVisible"
     :title="dialogType === 'edit' ? '编辑对话名称' : '确定删除对话？'"
@@ -6,9 +7,11 @@
     :show-close="false"
   >
     <template v-if="dialogType === 'edit'">
+      <!-- 编辑模式下展示标题输入框。 -->
       <el-input v-model="inputTitle" placeholder="请输入对话名称" maxlength="50" />
     </template>
     <template v-else>
+      <!-- 删除模式下只展示风险提示，不需要额外输入。 -->
       <div class="delete-warning">
         <el-icon class="warning-icon"><WarningFilled /></el-icon>
         <span>删除后，聊天记录将不可恢复。</span>
@@ -31,9 +34,7 @@ import { ref } from 'vue'
 import { WarningFilled } from '@element-plus/icons-vue'
 import { useChatStore } from '@/stores/chat'
 
-// DialogEdit 复用一个弹窗承载两种操作：
-// - 编辑会话标题
-// - 删除会话确认
+// DialogEdit 复用一个弹窗承载两种操作：编辑会话标题和删除会话确认。
 const chatStore = useChatStore()
 const dialogVisible = ref(false)
 const inputTitle = ref('')
@@ -46,6 +47,7 @@ const openDialog = (conversationId, type = 'edit') => {
   dialogType.value = type
 
   if (type === 'edit') {
+    // 回显当前标题，方便用户基于原值直接修改。
     const conversation = chatStore.conversations.find((item) => item.id === conversationId)
     inputTitle.value = conversation?.title || ''
   }
@@ -53,9 +55,7 @@ const openDialog = (conversationId, type = 'edit') => {
   dialogVisible.value = true
 }
 
-// 确认按钮会根据当前模式执行不同动作：
-// - edit：更新标题
-// - delete：删除会话
+// 确认按钮会根据当前模式执行不同动作：edit 更新标题，delete 删除会话。
 const handleConfirm = () => {
   if (dialogType.value === 'edit') {
     if (!inputTitle.value.trim()) return
@@ -82,12 +82,14 @@ defineExpose({
 
 <style lang="scss" scoped>
 .dialog-footer {
+  // footer 按钮右对齐，贴近常见确认弹窗交互。
   display: flex;
   justify-content: flex-end;
   gap: 12px;
 }
 
 .delete-warning {
+  // 删除提示用图标和文案组合强化不可恢复语义。
   display: flex;
   align-items: center;
   gap: 8px;

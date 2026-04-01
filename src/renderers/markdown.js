@@ -17,12 +17,12 @@ import copyIcon from '@/assets/photo/复制.png'
 import darkIcon from '@/assets/photo/暗黑模式.png'
 import lightIcon from '@/assets/photo/明亮模式.png'
 
+// 代码块头部按钮通过 HTML 字符串直接注入，后续由 ChatMessage 做事件委托。
 const renderCodeBlock = (code, languageLabel = 'code') => {
   return `<div class="code-block"><div class="code-header"><span class="code-lang">${languageLabel}</span><div class="code-actions"><button class="code-action-btn" data-action="copy" data-tooltip="复制"><img src="${copyIcon}" alt="copy" /></button><button class="code-action-btn" data-action="theme" data-tooltip="切换主题"><img src="${darkIcon}" alt="theme" data-light-icon="${lightIcon}" data-dark-icon="${darkIcon}" /></button></div></div><pre class="hljs"><code>${code}</code></pre></div>`
 }
 
-// 聊天场景里高频出现的代码语言就这些，没必要把 highlight.js 的全部语言包都打进来。
-// 改成 core + 手动注册后，可以明显收缩 markdown 渲染相关的体积。
+// 聊天场景里高频出现的代码语言就这些，没必要把 highlight.js 的全部语言包都打进来，改成 core + 手动注册后，可以明显收缩 markdown 渲染相关的体积。
 hljs.registerLanguage('bash', bash)
 hljs.registerLanguage('shell', bash)
 hljs.registerLanguage('sh', bash)
@@ -40,8 +40,7 @@ hljs.registerLanguage('html', xml)
 hljs.registerLanguage('xml', xml)
 hljs.registerLanguage('vue', xml)
 
-// 统一的 Markdown 渲染器。
-// 模型返回的文本最终都会先经过这里转成 HTML，再交给消息组件展示。
+// 统一的 Markdown 渲染器，模型返回的文本最终都会先经过这里转成 HTML，再交给消息组件展示。
 const md = new MarkdownIt({
   html: true,
   breaks: true,
@@ -49,8 +48,7 @@ const md = new MarkdownIt({
   highlight: function (str, lang) {
     const normalizedLang = lang?.trim().toLowerCase()
 
-    // 如果识别到了受支持的语言，就交给 highlight.js 做语法高亮。
-    // 这里还会额外拼出代码块头部，把复制和主题切换按钮一起注入。
+    // 如果识别到了受支持的语言，就交给 highlight.js 做语法高亮，这里还会额外拼出代码块头部，把复制和主题切换按钮一起注入。
     if (normalizedLang && hljs.getLanguage(normalizedLang)) {
       try {
         const highlighted = hljs.highlight(str, {
@@ -83,11 +81,10 @@ md.use(emoji)
 export const renderMarkdown = (content) => {
   if (!content) return ''
 
-  // Markdown 渲染结果最终会通过 `v-html` 注入到页面里，
-  // 因此这里统一用 DOMPurify 做一次净化，拦掉脚本、事件属性等危险内容。
-  // 这样既保留当前 markdown-it 的富文本能力，也把 XSS 风险收敛到渲染器这一层处理。
+  // Markdown 渲染结果最终会通过 `v-html` 注入到页面里，因此这里统一用 DOMPurify 做一次净化，拦掉脚本、事件属性等危险内容，这样既保留当前 markdown-it 的富文本能力，也把 XSS 风险收敛到渲染器这一层处理。
   const html = md.render(content)
   return DOMPurify.sanitize(html)
 }
 
+// 导出 md 实例，便于未来在别处复用或扩展规则。
 export { md }

@@ -1,4 +1,5 @@
 <template>
+  <!-- 首页以产品介绍和快捷入口为主，不承担完整聊天状态。 -->
   <div class="home-page">
     <header class="header">
       <div class="header-left">
@@ -8,6 +9,7 @@
         <div class="search-container" @click="handleSearchClick">
           <div class="search-input">
             <el-icon class="search-icon"><Search /></el-icon>
+            <!-- 这里只做触发器，不真的在首页输入文字。 -->
             <input v-model="searchText" type="text" placeholder="搜索" readonly />
           </div>
         </div>
@@ -46,6 +48,7 @@
 
     <Transition name="fade">
       <div v-if="showSearchDialog" class="search-dialog-overlay" @click="handleOverlayClick">
+        <!-- 阻止内部点击冒泡到遮罩层，避免弹层内容一点击就关闭。 -->
         <div class="search-dialog-container" @click.stop>
           <SearchDialog />
         </div>
@@ -59,9 +62,9 @@ import { defineAsyncComponent, ref, onMounted, onUnmounted } from 'vue'
 import { Search, ChatLineRound, Document, Setting } from '@element-plus/icons-vue'
 
 const SearchDialog = defineAsyncComponent(() => import('@/components/SearchDialog.vue'))
+// 搜索弹层按需加载，首页在未打开弹层时无需同步下载这部分逻辑。
 
-// HomePage 是项目的入口页。
-// 它主要负责展示产品简介，并承载一个独立的搜索/提问弹层入口。
+// HomePage 是项目的入口页，它主要负责展示产品简介，并承载一个独立的搜索/提问弹层入口。
 const searchText = ref('')
 const showSearchDialog = ref(false)
 
@@ -110,6 +113,7 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .home-page {
+  // 首页背景保持极简，重点把视觉注意力交给中间内容区。
   min-height: 100vh;
   background-color: var(--el-bg-color);
 }
@@ -214,6 +218,7 @@ onUnmounted(() => {
     }
 
     .features {
+      // 三个 feature 卡片描述当前仓库的主能力，不参与任何业务状态。
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 40px;
@@ -259,6 +264,7 @@ onUnmounted(() => {
     }
 
     .start-button {
+      // 主 CTA 用液态动画做强调，和普通按钮产生明显区分。
       position: relative;
       display: inline-block;
       padding: 20px 40px;
@@ -385,6 +391,7 @@ onUnmounted(() => {
 }
 
 .search-dialog-overlay {
+  // 搜索弹层使用整屏遮罩，保证焦点收敛到单一任务。
   position: fixed;
   top: 0;
   left: 0;

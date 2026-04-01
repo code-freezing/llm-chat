@@ -1,4 +1,5 @@
 <template>
+  <!-- 输入框和发送按钮属于一个整体输入区域。 -->
   <div class="chat-input-wrapper">
     <el-input
       v-model="inputValue"
@@ -11,6 +12,7 @@
     />
 
     <div class="button-group">
+      <!-- loading 时禁用发送，避免用户连续点击导致重复请求。 -->
       <button class="action-btn send-btn" :disabled="props.loading" @click="handleSend">
         <img src="@/assets/photo/发送.png" alt="send" />
       </button>
@@ -21,8 +23,7 @@
 <script setup>
 import { ref } from 'vue'
 
-// ChatInput 只负责收集输入，不直接发请求。
-// 它把用户输入整理好后，通过 emit 交给父组件驱动真正的聊天流程。
+// ChatInput 只负责收集输入，不直接发请求；它把用户输入整理好后，通过 emit 交给父组件驱动真正的聊天流程。
 const inputValue = ref('')
 
 const props = defineProps({
@@ -34,10 +35,7 @@ const props = defineProps({
 
 const emit = defineEmits(['send'])
 
-// 发送时只做两件事：
-// 1. 组装当前输入内容
-// 2. 通知父组件处理业务
-// 发送完成后立即清空输入框，避免残留上一轮状态。
+// 发送时只做两件事：组装当前输入内容并通知父组件处理业务；发送完成后立即清空输入框，避免残留上一轮状态。
 const handleSend = () => {
   if (!inputValue.value.trim() || props.loading) return
 
@@ -47,6 +45,7 @@ const handleSend = () => {
 }
 
 const handleNewline = (event) => {
+  // 阻止 Element Plus 默认提交行为，显式插入换行。
   event.preventDefault()
   inputValue.value += '\n'
 }
@@ -54,6 +53,7 @@ const handleNewline = (event) => {
 
 <style lang="scss" scoped>
 .chat-input-wrapper {
+  // 输入区整体采用卡片样式，和上方消息区视觉分层。
   padding: 0.8rem;
   background-color: var(--bg-color);
   border: 1px solid var(--border-color);
@@ -102,6 +102,7 @@ const handleNewline = (event) => {
       }
 
       &.send-btn {
+        // 发送按钮使用主色实心，强化“主操作”感知。
         width: 2rem;
         height: 2rem;
         background-color: #3f7af1;

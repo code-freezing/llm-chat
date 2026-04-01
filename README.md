@@ -4,6 +4,16 @@
 
 它面向 OpenAI 兼容接口，支持多会话管理、流式响应、System Prompt 预设、上下文摘要压缩、Markdown 安全渲染和本地持久化，适合作为 AI Chat 产品原型、个人项目基础模板或二次开发起点。
 
+## 阅读导航
+
+如果你是第一次阅读这个仓库，建议按下面顺序理解核心实现：
+
+1. `src/views/ChatView.vue`：聊天页入口，串起消息区、输入区、设置面板和会话菜单。
+2. `src/composables/useChatSession.js`：一轮对话的编排中心，负责发送、摘要压缩和重新生成。
+3. `src/services/chat/api.js` 与 `src/services/chat/messageHandler.js`：负责请求接口和解析流式/非流式响应。
+4. `src/stores/chat.js` 与 `src/stores/setting.js`：负责持久化的会话状态和设置状态。
+5. `src/components/VirtualMessageList.vue` 与 `src/renderers/markdown.js`：分别负责长列表性能和消息内容渲染体验。
+
 ## 项目预览
 
 ![首页预览](./src/assets/sampels/首页.png)

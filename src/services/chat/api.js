@@ -1,6 +1,7 @@
 import { API_BASE_URL } from '@/config/env'
 import { useSettingStore } from '@/stores/setting'
 
+// 所有聊天请求最终都从这里发出，页面层只负责提供消息数组和局部覆盖参数，不关心具体 fetch 细节。
 export const createChatCompletion = async (messages, requestOptions = {}) => {
   const settingStore = useSettingStore()
   const stream =
@@ -8,8 +9,7 @@ export const createChatCompletion = async (messages, requestOptions = {}) => {
   const maxTokens = requestOptions.maxTokens ?? settingStore.settings.maxTokens
   const model = requestOptions.model ?? settingStore.settings.model
 
-  // 请求体直接来自 setting store，确保界面上的配置和真正发出的参数保持一致。
-  // 摘要请求会通过 requestOptions 覆盖 stream / max_tokens，这样不用再额外维护一套重复请求函数。
+  // 请求体直接来自 setting store，确保界面上的配置和真正发出的参数保持一致；摘要请求会通过 requestOptions 覆盖 stream / max_tokens，这样不用再额外维护一套重复请求函数。
   const payload = {
     model,
     messages,
@@ -17,6 +17,7 @@ export const createChatCompletion = async (messages, requestOptions = {}) => {
     max_tokens: maxTokens,
   }
 
+  // 接口保持 OpenAI 兼容协议，请求头里只需要 API Key 和 JSON 类型。
   const options = {
     method: 'POST',
     headers: {
@@ -35,8 +36,7 @@ export const createChatCompletion = async (messages, requestOptions = {}) => {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
 
-    // 如果当前是流式模式，这里不直接解析内容，
-    // 而是把原始 Response 交给 messageHandler 逐段读取 body。
+    // 如果当前是流式模式，这里不直接解析内容，而是把原始 Response 交给 messageHandler 逐段读取 body。
     if (stream) {
       return response
     }
@@ -44,6 +44,7 @@ export const createChatCompletion = async (messages, requestOptions = {}) => {
     // 非流式模式下接口直接返回完整 JSON，因此在这里一次性读取即可。
     const data = await response.json()
     const duration = (Date.now() - startTime) / 1000
+    // 非流式没有增量包时间信息，只能用总耗时粗略估算平均速度。
     data.speed = (data.usage.completion_tokens / duration).toFixed(2)
     return data
   } catch (error) {

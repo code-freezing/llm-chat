@@ -1,4 +1,5 @@
 <template>
+  <!-- 左上角悬浮菜单，集中承载会话切换与管理入口。 -->
   <div class="popup-wrapper">
     <button class="action-btn" @click="toggle">
       <img src="@/assets/photo/弹出框.png" alt="menu" />
@@ -9,6 +10,7 @@
     >
       <div v-show="isVisible" class="popup-menu">
         <div class="menu-section">
+          <!-- 菜单内部也保留新建会话入口，减少来回移动光标。 -->
           <el-button class="new-chat-btn" :icon="Plus" @click="handleNewChat">新对话</el-button>
         </div>
         <div class="divider"></div>
@@ -27,6 +29,7 @@
                 <span :title="conversation.title">{{ formatTitle(conversation.title) }}</span>
               </div>
               <div class="item-actions">
+                <!-- stop 修饰避免点击编辑/删除时又触发外层切换会话。 -->
                 <button class="action-btn" @click.stop="handleOpenDialog(conversation.id, 'edit')">
                   <img src="@/assets/photo/编辑.png" alt="edit" />
                 </button>
@@ -53,8 +56,7 @@ import { useChatStore } from '@/stores/chat'
 
 const DialogEdit = defineAsyncComponent(() => import('@/components/DialogEdit.vue'))
 
-// PopupMenu 是聊天页左上角的会话入口菜单。
-// 它不保存会话数据，只把 store 里的会话列表可视化，并提供切换/编辑/删除入口。
+// PopupMenu 是聊天页左上角的会话入口菜单；它不保存会话数据，只把 store 里的会话列表可视化，并提供切换、编辑和删除入口。
 const isVisible = ref(false)
 const chatStore = useChatStore()
 const dialogEdit = ref(null)
@@ -138,6 +140,7 @@ defineExpose({
 }
 
 .popup-menu {
+  // 弹层用绝对定位挂在触发按钮下方，不影响顶部栏正常布局。
   position: absolute;
   top: calc(100% + 12px);
   left: 0;
@@ -219,6 +222,7 @@ defineExpose({
 
       &:hover,
       &.active {
+        // 当前会话附带左侧蓝色标识，提升在长列表中的定位效率。
         background-color: #e5e7eb;
 
         .item-actions {

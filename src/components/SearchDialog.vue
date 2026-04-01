@@ -1,4 +1,5 @@
 <template>
+  <!-- 首页搜索弹层复用聊天链路，但交互更轻量。 -->
   <div class="search-dialog">
     <div class="search-header">
       <div class="search-input">
@@ -16,6 +17,7 @@
     </div>
 
     <div v-if="messages.length === 0" class="dialog-content">
+      <!-- 初始状态先展示一段欢迎语和建议提示词。 -->
       <div class="initial-message">
         {{ aiMessage }}
       </div>
@@ -44,6 +46,7 @@
       :estimate-size="220"
     >
       <template #default="{ item: message, index }">
+        <!-- 与聊天页共用消息组件，保持渲染和操作体验一致。 -->
         <ChatMessage
           :message="message"
           :is-last-assistant-message="index === messages.length - 1 && message.role === 'assistant'"
@@ -61,8 +64,7 @@ import VirtualMessageList from './VirtualMessageList.vue'
 import { useAutoScroll } from '@/composables/useAutoScroll'
 import { useChatSession } from '@/composables/useChatSession'
 
-// SearchDialog 是首页里的轻量提问弹层。
-// 它复用了聊天请求与消息渲染能力，但消息状态只保存在本组件内部。
+// SearchDialog 是首页里的轻量提问弹层；它复用了聊天请求与消息渲染能力，但消息状态只保存在本组件内部。
 const searchText = ref('')
 const messages = ref([])
 const isLoading = ref(false)
@@ -70,6 +72,7 @@ const summary = ref('')
 
 const aiMessage = 'Hi，我是你的 AI 小助手，有什么问题都可以问我。'
 
+// 初始推荐问题用于帮助用户快速试用接口，不会自动发送。
 const suggestedPrompts = [
   '如何快速上手 Vue 3 框架',
   '字节跳动前端面试难吗',
@@ -81,6 +84,7 @@ const messagesContainer = ref(null)
 
 useAutoScroll(messages, messagesContainer)
 
+// SearchDialog 不依赖全局会话 store，而是把“消息数组 + 摘要字符串”都留在组件本地。
 const { handleSend: sendMessage, handleRegenerate } = useChatSession({
   messages,
   setLoading: (value) => {
@@ -109,6 +113,7 @@ const getMessageKey = (message) => message.id
 
 <style lang="scss" scoped>
 .search-dialog {
+  // 弹层限制最大高度，内部内容超出后在自身滚动。
   max-width: 640px;
   min-width: 320px;
   max-height: 600px;
@@ -177,6 +182,7 @@ const getMessageKey = (message) => message.id
   }
 
   .dialog-content {
+    // 初始推荐区和消息区共用同一滚动容器。
     flex: 1;
     padding: 12px;
     overflow-y: auto;

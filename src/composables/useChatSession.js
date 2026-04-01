@@ -2,6 +2,7 @@ import { useSettingStore } from '@/stores/setting'
 import { createChatCompletion } from '@/services/chat/api'
 import { messageHandler } from '@/services/chat/messageHandler'
 
+// 本地临时消息 id 仅用于 SearchDialog 这类不经过 store 统一补 id 的场景。
 const createLocalMessageId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 const MAX_CONTEXT_MESSAGES = 16
 const SUMMARY_MAX_TOKENS = 400
@@ -14,9 +15,7 @@ const SUMMARY_SYSTEM_PROMPT = `你是一个对话摘要助手。
 
 不要写寒暄，不要重复无关细节，不要使用项目符号，直接输出摘要正文。`
 
-// “重新生成”真正依赖的不是“最后两条消息”，
-// 而是“最后一个 assistant 回复”以及它前面最近的一条 user 消息。
-// 这里显式把这一轮问答找出来，避免后续消息结构稍有变化就删错消息。
+// “重新生成”真正依赖的不是“最后两条消息”，而是“最后一个 assistant 回复”以及它前面最近的一条 user 消息，这里显式把这一轮问答找出来，避免后续消息结构稍有变化就删错消息。
 const getLastRegeneratableTurn = (messageList) => {
   const assistantIndex = messageList.findLastIndex((message) => message.role === 'assistant')
   if (assistantIndex === -1) return null
@@ -34,13 +33,13 @@ const getLastRegeneratableTurn = (messageList) => {
 }
 
 const summarizeMessageContent = (content) => {
+  // 摘要阶段只需要保留可读的核心文本，不需要带上原始空白格式。
   const normalized = content.replace(/\s+/g, ' ').trim()
   if (normalized.length <= 120) return normalized
   return `${normalized.slice(0, 120)}...`
 }
 
-// 摘要请求不需要把完整 UI 消息对象原样发给模型，只需要稳定、可读的对话文本。
-// 这里把旧消息整理成“用户/助手：内容”的连续文本，方便摘要模型抓取上下文重点。
+// 摘要请求不需要把完整 UI 消息对象原样发给模型，只需要稳定、可读的对话文本，这里把旧消息整理成“用户/助手：内容”的连续文本，方便摘要模型抓取上下文重点。
 const buildSummaryTranscript = (messageList) => {
   return messageList
     .map((message) => {
@@ -50,8 +49,7 @@ const buildSummaryTranscript = (messageList) => {
     .join('\n')
 }
 
-// 每次压缩时，把“已有摘要 + 新进入压缩区的旧消息”一起交给模型重写成一段新摘要。
-// 这样摘要内容会随着对话推进不断迭代，而不是简单地把摘要和新片段生硬拼接在一起。
+// 每次压缩时，把“已有摘要 + 新进入压缩区的旧消息”一起交给模型重写成一段新摘要，这样摘要内容会随着对话推进不断迭代，而不是简单地把摘要和新片段生硬拼接在一起。
 const buildSummaryMessages = (currentSummary, messageList) => {
   const summaryContext = currentSummary?.trim()
     ? `已有摘要：\n${currentSummary.trim()}`
@@ -74,27 +72,21 @@ const extractSummaryContent = (response) => {
   return response.choices?.[0]?.message?.content?.trim() || ''
 }
 
-// 第一阶段先用滑动窗口控制上下文长度：
-// 每次请求只保留最近一段有效消息，避免历史无限增长导致 token 持续膨胀。
-// 这里的“有效消息”会排除当前轮为了 UI 流式展示而临时插入的空 assistant 占位消息。
+// 第一阶段先用滑动窗口控制上下文长度：每次请求只保留最近一段有效消息，避免历史无限增长导致 token 持续膨胀；这里的“有效消息”会排除当前轮为了 UI 流式展示而临时插入的空 assistant 占位消息。
 const getEffectiveMessages = (messageList) => {
   return messageList.filter((message) => {
     return !(message.role === 'assistant' && message.loading && !message.content)
   })
 }
 
+// 正常聊天请求只需要最近一段有效上下文，避免历史无限增长。
 const getContextMessages = (messageList) => {
   return getEffectiveMessages(messageList)
     .slice(-MAX_CONTEXT_MESSAGES)
     .map(({ role, content }) => ({ role, content }))
 }
 
-// 这个组合式函数只负责“聊天流程编排”：
-// - 写入用户消息
-// - 插入 assistant 占位消息
-// - 发起请求
-// - 把响应回填到最后一条 assistant 消息
-// 页面组件只需要提供自己的消息读写方式，不再直接拼整条聊天流程。
+// 这个组合式函数只负责“聊天流程编排”：写入用户消息、插入 assistant 占位消息、发起请求并把响应回填到最后一条 assistant 消息；页面组件只需要提供自己的消息读写方式，不再直接拼整条聊天流程。
 export const useChatSession = ({
   messages,
   setLoading,
@@ -106,13 +98,10 @@ export const useChatSession = ({
 }) => {
   const settingStore = useSettingStore()
 
-  // SearchDialog 的消息存在组件本地，需要自己补 id；
-  // ChatView 走的是 store，store 已经会补 id 和时间戳，因此这里允许外部覆盖。
+  // SearchDialog 的消息存在组件本地，需要自己补 id；ChatView 走的是 store，store 已经会补 id 和时间戳，因此这里允许外部覆盖。
   const buildMessage = createLocalMessage || ((message) => ({ id: createLocalMessageId(), ...message }))
 
-  // 历史消息超过窗口后，不再用本地规则直接拼摘要，
-  // 而是额外发起一次“摘要请求”，让模型把旧上下文压成一段更自然、更可用的 summary。
-  // 摘要失败时不裁掉旧消息，避免在压缩失败的情况下直接造成上下文丢失。
+  // 历史消息超过窗口后，不再用本地规则直接拼摘要，而是额外发起一次“摘要请求”，让模型把旧上下文压成一段更自然、更可用的 summary；摘要失败时不裁掉旧消息，避免在压缩失败的情况下直接造成上下文丢失。
   const compressConversation = async () => {
     const effectiveMessages = getEffectiveMessages(messages.value)
     if (effectiveMessages.length <= MAX_CONTEXT_MESSAGES) return
@@ -149,8 +138,7 @@ export const useChatSession = ({
       })
     }
 
-    // system prompt 不属于用户聊天记录本身，而是每次请求前附加的一层“全局行为约束”。
-    // 因此它不写入消息历史，只在真正发请求时统一插到最前面。
+    // system prompt 不属于用户聊天记录本身，而是每次请求前附加的一层“全局行为约束”，因此它不写入消息历史，只在真正发请求时统一插到最前面。
     if (settingStore.settings.systemPrompt.trim()) {
       requestMessages.unshift({
         role: 'system',
@@ -161,6 +149,7 @@ export const useChatSession = ({
     return requestMessages
   }
 
+  // assistant 消息在流式和非流式模式下都走同一套回填逻辑。
   const fillAssistantMessage = (message, content, reasoningContent, completionTokens, speed) => {
     message.content = content
     message.reasoning_content = reasoningContent
@@ -172,8 +161,7 @@ export const useChatSession = ({
     let assistantMessage = null
 
     try {
-      // 先写入用户消息，再补一条空的 assistant 消息占位。
-      // 这样无论接口是流式还是非流式，都能统一回填到最后一条助手消息。
+      // 先写入用户消息，再补一条空的 assistant 消息占位，这样无论接口是流式还是非流式，都能统一回填到最后一条助手消息。
       addMessage(buildMessage(messageHandler.formatMessage('user', messageContent.text)))
       await compressConversation()
       addMessage(buildMessage(messageHandler.formatMessage('assistant', '', '')))
@@ -201,6 +189,7 @@ export const useChatSession = ({
     } catch (error) {
       console.error('Failed to send message:', error)
       if (assistantMessage) {
+        // 这里直接把错误提示回填到原占位消息，避免界面上留下空白 assistant 卡片。
         assistantMessage.content = '抱歉，发生了一些错误，请稍后重试。'
       }
     } finally {
@@ -212,12 +201,12 @@ export const useChatSession = ({
   }
 
   const handleRegenerate = async () => {
-    // 重新生成时，优先按“最后一个 assistant + 它前面的最近一条 user”定位最后一轮问答。
-    // 这样即使中间插入了别的消息类型，或者消息条数不再恰好是最后两条，也不会误删。
+    // 重新生成时，优先按“最后一个 assistant + 它前面的最近一条 user”定位最后一轮问答，这样即使中间插入了别的消息类型，或者消息条数不再恰好是最后两条，也不会误删。
     const lastTurn = getLastRegeneratableTurn(messages.value)
     if (!lastTurn) return
 
     messages.value.splice(lastTurn.startIndex, lastTurn.deleteCount)
+    // 删除上一轮问答后，直接复用原 user 内容重新走发送流程。
     await handleSend({ text: lastTurn.userMessage.content })
   }
 
