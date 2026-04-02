@@ -5,7 +5,7 @@
       <!-- assistant 占位消息在真正内容回来前先展示加载态。 -->
       <div v-if="message.loading && message.role === 'assistant'" class="thinking-text">
         <img src="@/assets/photo/加载中.png" alt="loading" class="loading-icon" />
-        <span>内容生成中...</span>
+        <span>{{ message.loading_text || '内容生成中...' }}</span>
       </div>
 
       <!-- reasoning_content 存在时，允许用户单独折叠或展开推理过程。 -->

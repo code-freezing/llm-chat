@@ -160,20 +160,27 @@ export const useChatSession = ({
     message.reasoning_content = reasoningContent
     message.completion_tokens = completionTokens
     message.speed = speed
+    message.loading_text = '内容生成中...'
   }
 
   const handleSend = async (messageContent) => {
     let assistantMessage = null
 
     try {
-      // 先写入用户消息，再补一条空的 assistant 消息占位，这样无论接口是流式还是非流式，都能统一回填到最后一条助手消息。
-      addMessage(buildMessage(messageHandler.formatMessage('user', messageContent.text)))
-      await compressConversation()
-      addMessage(buildMessage(messageHandler.formatMessage('assistant', '', '')))
-
+      // 点击发送后立即进入 loading，避免摘要压缩请求较慢时，按钮仍然处于可点击状态。
       setLoading(true)
+
+      // 先写入用户消息，再立刻补一条 assistant 占位消息。
+      // 这样在摘要压缩阶段，界面也能明确告诉用户当前仍在处理中。
+      addMessage(buildMessage(messageHandler.formatMessage('user', messageContent.text)))
+      addMessage(
+        buildMessage(messageHandler.formatMessage('assistant', '', '', '正在压缩上下文...')),
+      )
       assistantMessage = getLastMessage()
       assistantMessage.loading = true
+
+      await compressConversation()
+      assistantMessage.loading_text = '内容生成中...'
 
       const response = await createChatCompletion(getMessagesForAPI())
 

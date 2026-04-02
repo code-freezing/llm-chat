@@ -38,9 +38,21 @@ const calculateSpeed = (completionTokens, startTime) => {
   return (completionTokens / elapsedSeconds).toFixed(2)
 }
 
+// SSE 增量包里真正和 UI 相关的只有这几个字段，
+// 先收敛成稳定结构，后面主流程就不用反复访问原始 JSON 形状。
+const getDeltaPayload = (data) => {
+  const delta = data.choices?.[0]?.delta || {}
+
+  return {
+    content: delta.content || '',
+    reasoning: delta.reasoning_content || '',
+    completionTokens: data.usage?.completion_tokens || 0,
+  }
+}
+
 export const messageHandler = {
   // 统一构造消息对象，让不同来源的消息都保持一致结构。
-  formatMessage(role, content, reasoning_content = '') {
+  formatMessage(role, content, reasoning_content = '', loadingText = '内容生成中...') {
     return {
       role,
       content,
@@ -48,6 +60,7 @@ export const messageHandler = {
       completion_tokens: 0,
       speed: 0,
       loading: false,
+      loading_text: loadingText,
     }
   },
 
@@ -59,7 +72,41 @@ export const messageHandler = {
     let buffer = ''
     let accumulatedContent = ''
     let accumulatedReasoning = ''
+    let latestCompletionTokens = 0
     const startTime = Date.now()
+    let flushFrameId = 0
+
+    const flushUpdate = () => {
+      flushFrameId = 0
+      updateCallback(
+        accumulatedContent,
+        accumulatedReasoning,
+        latestCompletionTokens,
+        calculateSpeed(latestCompletionTokens, startTime),
+      )
+    }
+
+    const scheduleFlush = () => {
+      if (flushFrameId) return
+
+      // 流式场景下 token 更新频率很高，这里按帧合并回填，
+      // 避免每个增量都触发一次完整 Markdown 渲染和高度重算。
+      flushFrameId = requestAnimationFrame(flushUpdate)
+    }
+
+    const applyEventData = (eventData) => {
+      // `[DONE]` 是兼容 OpenAI 的流式结束标记，不属于 JSON 业务载荷。
+      if (!eventData || eventData === DONE_EVENT) return
+
+      const data = JSON.parse(eventData)
+      const { content, reasoning, completionTokens } = getDeltaPayload(data)
+
+      // 页面展示需要的是“当前完整内容”，不是单次增量，因此这里自己做累计。
+      accumulatedContent += content
+      accumulatedReasoning += reasoning
+      latestCompletionTokens = completionTokens
+      scheduleFlush()
+    }
 
     while (true) {
       const { done, value } = await reader.read()
@@ -70,49 +117,18 @@ export const messageHandler = {
       const { events, remaining } = extractSSEEvents(buffer)
       buffer = remaining
       for (const eventChunk of events) {
-        const eventData = parseSSEEventData(eventChunk)
-        // `[DONE]` 是很多兼容 OpenAI 的流式接口都会发送的结束标记，它不是 JSON 载荷，因此要在这里提前跳过。
-        if (!eventData || eventData === DONE_EVENT) continue
-        // 一个 SSE 事件可能被拆成多个 chunk，也可能包含多行 data，这里只在事件完整后再解析 JSON。
-        const data = JSON.parse(eventData)
-        const delta = data.choices?.[0]?.delta || {}
-        const content = delta.content || ''
-        const reasoning = delta.reasoning_content || ''
-        const completionTokens = data.usage?.completion_tokens || 0
-
-        // 页面展示需要的是“当前完整内容”，不是单次增量，因此这里自己做累计。
-        accumulatedContent += content
-        accumulatedReasoning += reasoning
-
-        updateCallback(
-          accumulatedContent,
-          accumulatedReasoning,
-          completionTokens,
-          calculateSpeed(completionTokens, startTime),
-        )
+        applyEventData(parseSSEEventData(eventChunk))
       }
 
       if (done) break
     }
 
     // 某些服务端在流结束前不一定补上最后一个空行分隔符，故循环结束后，再尝试把 buffer 里残留的最后一个事件按完整事件处理一次。
-    const finalEventData = parseSSEEventData(buffer.trim())
-    if (finalEventData && finalEventData !== DONE_EVENT) {
-      const data = JSON.parse(finalEventData)
-      const delta = data.choices?.[0]?.delta || {}
-      const content = delta.content || ''
-      const reasoning = delta.reasoning_content || ''
-      const completionTokens = data.usage?.completion_tokens || 0
+    applyEventData(parseSSEEventData(buffer.trim()))
 
-      accumulatedContent += content
-      accumulatedReasoning += reasoning
-
-      updateCallback(
-        accumulatedContent,
-        accumulatedReasoning,
-        completionTokens,
-        calculateSpeed(completionTokens, startTime),
-      )
+    if (flushFrameId) {
+      cancelAnimationFrame(flushFrameId)
+      flushUpdate()
     }
   },
 
