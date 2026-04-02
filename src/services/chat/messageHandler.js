@@ -95,7 +95,7 @@ export const messageHandler = {
       if (done) break
     }
 
-    // 某些服务端在流结束前不一定补上最后一个空行分隔符，因此循环结束后，再尝试把 buffer 里残留的最后一个事件按完整事件处理一次。
+    // 某些服务端在流结束前不一定补上最后一个空行分隔符，故循环结束后，再尝试把 buffer 里残留的最后一个事件按完整事件处理一次。
     const finalEventData = parseSSEEventData(buffer.trim())
     if (finalEventData && finalEventData !== DONE_EVENT) {
       const data = JSON.parse(finalEventData)

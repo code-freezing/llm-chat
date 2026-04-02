@@ -13,8 +13,13 @@
 
     <div class="button-group">
       <!-- loading 时禁用发送，避免用户连续点击导致重复请求。 -->
-      <button class="action-btn send-btn" :disabled="props.loading" @click="handleSend">
-        <img src="@/assets/photo/发送.png" alt="send" />
+      <button
+        class="action-btn send-btn"
+        :class="{ 'is-loading': props.loading }"
+        :disabled="props.loading"
+        @click="handleSend"
+      >
+        <img :src="props.loading ? loadingIcon : sendIcon" :alt="props.loading ? 'loading' : 'send'" />
       </button>
     </div>
   </div>
@@ -22,6 +27,8 @@
 
 <script setup>
 import { ref } from 'vue'
+import sendIcon from '@/assets/photo/发送.png'
+import loadingIcon from '@/assets/photo/加载中.png'
 
 // ChatInput 只负责收集输入，不直接发请求；它把用户输入整理好后，通过 emit 交给父组件驱动真正的聊天流程。
 const inputValue = ref('')
@@ -53,7 +60,6 @@ const handleNewline = (event) => {
 
 <style lang="scss" scoped>
 .chat-input-wrapper {
-  // 输入区整体采用卡片样式，和上方消息区视觉分层。
   padding: 0.8rem;
   background-color: var(--bg-color);
   border: 1px solid var(--border-color);
@@ -101,8 +107,11 @@ const handleNewline = (event) => {
         background-color: rgba(0, 0, 0, 0.05);
       }
 
+      &:disabled {
+        cursor: not-allowed;
+      }
+
       &.send-btn {
-        // 发送按钮使用主色实心，强化“主操作”感知。
         width: 2rem;
         height: 2rem;
         background-color: #3f7af1;
@@ -115,8 +124,29 @@ const handleNewline = (event) => {
         &:hover {
           background-color: #3266d6;
         }
+
+        &:disabled {
+          background-color: #8fb1f7;
+        }
+
+        &.is-loading img {
+          animation: spin 1s linear infinite;
+        }
+
+        &:disabled:hover {
+          background-color: #8fb1f7;
+        }
       }
     }
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 </style>

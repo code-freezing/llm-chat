@@ -154,17 +154,15 @@ const visibleRange = computed(() => {
 
 // 这里把原始数组裁成真正需要渲染的局部数组，并顺手带上原始下标和稳定 key。
 const visibleItems = computed(() => {
-  return props.items
-    .slice(visibleRange.value.start, visibleRange.value.end)
-    .map((item, offset) => {
-      const index = visibleRange.value.start + offset
+  return props.items.slice(visibleRange.value.start, visibleRange.value.end).map((item, offset) => {
+    const index = visibleRange.value.start + offset
 
-      return {
-        item,
-        index,
-        key: getItemKey(item),
-      }
-    })
+    return {
+      item,
+      index,
+      key: getItemKey(item),
+    }
+  })
 })
 
 // 上下占位高度都基于前缀高度表推导，避免额外遍历。
@@ -182,6 +180,22 @@ const updateItemHeight = (key, height) => {
   const nextCache = new Map(heightCache.value)
   nextCache.set(key, height)
   heightCache.value = nextCache
+}
+
+// 插槽内容的根节点可能带有 margin（例如 ChatMessage 的 margin-bottom），这些外边距不会稳定体现在 virtual-item 自身的 contentRect 里，因此量测时要把第一层子节点的垂直外边距一并算进去。
+const measureElementHeight = (element) => {
+  if (!element) return 0
+
+  const wrapperHeight = element.getBoundingClientRect().height
+  const contentElement = element.firstElementChild
+  if (!contentElement) return Math.ceil(wrapperHeight)
+
+  const contentHeight = contentElement.getBoundingClientRect().height
+  const contentStyle = window.getComputedStyle(contentElement)
+  const marginTop = Number.parseFloat(contentStyle.marginTop) || 0
+  const marginBottom = Number.parseFloat(contentStyle.marginBottom) || 0
+
+  return Math.ceil(Math.max(wrapperHeight, contentHeight + marginTop + marginBottom))
 }
 
 // 每个可见消息项都会绑定一个 ResizeObserver，当消息因为 Markdown 渲染、流式输出或图片加载导致高度变化时，列表会自动修正缓存。
@@ -204,12 +218,13 @@ const observeElement = (key, element) => {
 
   const observer = new ResizeObserver((entries) => {
     const entry = entries[0]
-    updateItemHeight(key, Math.ceil(entry.contentRect.height))
+    const observedElement = entry.target
+    updateItemHeight(key, measureElementHeight(observedElement))
   })
 
   observer.observe(element)
   resizeObservers.set(key, observer)
-  updateItemHeight(key, Math.ceil(element.getBoundingClientRect().height))
+  updateItemHeight(key, measureElementHeight(element))
 }
 
 const setItemElement = (key, element) => {
@@ -299,13 +314,11 @@ defineExpose({
 
 <style lang="scss" scoped>
 .virtual-list {
-  // 虚拟列表自身负责滚动，父组件只需要给定可用高度。
   height: 100%;
   overflow-y: auto;
 }
 
 .virtual-item {
-  // 防止内部长文本或宽表格把 flex 子项最小宽度撑爆。
   min-width: 0;
 }
 </style>

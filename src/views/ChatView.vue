@@ -68,7 +68,7 @@
 </template>
 
 <script setup>
-import { computed, defineAsyncComponent, nextTick, ref, onMounted } from 'vue'
+import { computed, defineAsyncComponent, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus } from '@element-plus/icons-vue'
 
@@ -80,9 +80,9 @@ import { useAutoScroll } from '@/composables/useAutoScroll'
 import { useChatSession } from '@/composables/useChatSession'
 import { useChatStore } from '@/stores/chat'
 
+// 设置面板和编辑弹窗按需异步加载，减少首屏进入聊天页时的同步体积。
 const SettingsPanel = defineAsyncComponent(() => import('@/components/SettingsPanel.vue'))
 const DialogEdit = defineAsyncComponent(() => import('@/components/DialogEdit.vue'))
-// 设置面板和编辑弹窗按需异步加载，减少首屏进入聊天页时的同步体积。
 
 // ChatView 是聊天页的业务协调层，现在它主要负责页面展示和页面级交互，具体聊天流程交给组合式函数处理。
 const chatStore = useChatStore()
@@ -122,6 +122,10 @@ const { handleSend, handleRegenerate } = useChatSession({
   setSummary: (summary) => {
     chatStore.updateConversationSummary(chatStore.currentConversationId, summary)
   },
+  getSummaryCutoff: () => chatStore.currentConversation?.summaryCutoff || 0,
+  setSummaryCutoff: (summaryCutoff) => {
+    chatStore.updateConversationSummaryCutoff(chatStore.currentConversationId, summaryCutoff)
+  },
 })
 
 const handleNewChat = () => {
@@ -131,19 +135,16 @@ const handleNewChat = () => {
 // 虚拟列表需要稳定 key 识别消息项和高度缓存。
 const getMessageKey = (message) => message.id
 
-const handleOpenSettings = async () => {
-  await nextTick()
-  settingDrawer.value?.openDrawer()
+const handleOpenSettings = () => {
+  settingDrawer.value.openDrawer()
 }
 
-const handleEditConversation = async () => {
-  await nextTick()
-  dialogEdit.value?.openDialog(chatStore.currentConversationId, 'edit')
+const handleEditConversation = () => {
+  dialogEdit.value.openDialog(chatStore.currentConversationId, 'edit')
 }
 
-// 顶部标题空间有限，因此只做一个非常轻量的截断展示。
 const formatTitle = (title) => {
-  return title.length > 12 ? `${title.slice(0, 12)}...` : title
+  return title.length > 10 ? `${title.slice(0, 10)}...` : title
 }
 
 const handleBack = () => {

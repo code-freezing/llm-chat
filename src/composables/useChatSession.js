@@ -95,19 +95,24 @@ export const useChatSession = ({
   createLocalMessage,
   getSummary,
   setSummary,
+  getSummaryCutoff,
+  setSummaryCutoff,
 }) => {
   const settingStore = useSettingStore()
 
   // SearchDialog 的消息存在组件本地，需要自己补 id；ChatView 走的是 store，store 已经会补 id 和时间戳，因此这里允许外部覆盖。
   const buildMessage = createLocalMessage || ((message) => ({ id: createLocalMessageId(), ...message }))
 
-  // 历史消息超过窗口后，不再用本地规则直接拼摘要，而是额外发起一次“摘要请求”，让模型把旧上下文压成一段更自然、更可用的 summary；摘要失败时不裁掉旧消息，避免在压缩失败的情况下直接造成上下文丢失。
+  // 历史消息超过窗口后，只压缩“新进入旧消息区”的那部分内容。
+  // UI 里的完整历史仍然保留，摘要只服务于后续请求上下文。
   const compressConversation = async () => {
     const effectiveMessages = getEffectiveMessages(messages.value)
     if (effectiveMessages.length <= MAX_CONTEXT_MESSAGES) return
 
-    const messagesToCompress = effectiveMessages.slice(0, -MAX_CONTEXT_MESSAGES)
-    const recentMessages = effectiveMessages.slice(-MAX_CONTEXT_MESSAGES)
+    const compressionEndIndex = effectiveMessages.length - MAX_CONTEXT_MESSAGES
+    const currentCutoff = Math.min(getSummaryCutoff?.() ?? 0, compressionEndIndex)
+    const messagesToCompress = effectiveMessages.slice(currentCutoff, compressionEndIndex)
+    if (messagesToCompress.length === 0) return
 
     try {
       const summaryResponse = await createChatCompletion(
@@ -121,7 +126,7 @@ export const useChatSession = ({
       if (!nextSummary) return
 
       setSummary(nextSummary)
-      messages.value.splice(0, messages.value.length, ...recentMessages)
+      setSummaryCutoff?.(compressionEndIndex)
     } catch (error) {
       console.error('Failed to generate conversation summary:', error)
     }

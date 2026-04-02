@@ -13,6 +13,7 @@ import Components from 'unplugin-vue-components/vite'
 // 3. 按依赖类型拆分构建产物
 export default defineConfig(() => {
   return {
+    base: '/',
     plugins: [
       vue(),
       // 自动导入 Element Plus 的 API，减少模板和脚本里的重复 import。

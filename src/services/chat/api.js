@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/config/env'
+import { DEFAULT_SETTINGS } from '@/constants/settings'
 import { useSettingStore } from '@/stores/setting'
 
 // 所有聊天请求最终都从这里发出，页面层只负责提供消息数组和局部覆盖参数，不关心具体 fetch 细节。
@@ -8,6 +9,10 @@ export const createChatCompletion = async (messages, requestOptions = {}) => {
     requestOptions.stream === undefined ? settingStore.settings.stream : requestOptions.stream
   const maxTokens = requestOptions.maxTokens ?? settingStore.settings.maxTokens
   const model = requestOptions.model ?? settingStore.settings.model
+  const temperature =
+    requestOptions.temperature ?? settingStore.settings.temperature ?? DEFAULT_SETTINGS.temperature
+  const topP = requestOptions.topP ?? settingStore.settings.topP ?? DEFAULT_SETTINGS.topP
+  const topK = requestOptions.topK ?? settingStore.settings.topK ?? DEFAULT_SETTINGS.topK
 
   // 请求体直接来自 setting store，确保界面上的配置和真正发出的参数保持一致；摘要请求会通过 requestOptions 覆盖 stream / max_tokens，这样不用再额外维护一套重复请求函数。
   const payload = {
@@ -15,6 +20,9 @@ export const createChatCompletion = async (messages, requestOptions = {}) => {
     messages,
     stream,
     max_tokens: maxTokens,
+    temperature,
+    top_p: topP,
+    top_k: topK,
   }
 
   // 接口保持 OpenAI 兼容协议，请求头里只需要 API Key 和 JSON 类型。

@@ -75,21 +75,18 @@ const handleCancel = () => {
 }
 
 defineExpose({
-  // 暴露给父组件，方便从菜单或聊天页标题区域直接拉起弹窗。
   openDialog,
 })
 </script>
 
 <style lang="scss" scoped>
 .dialog-footer {
-  // footer 按钮右对齐，贴近常见确认弹窗交互。
   display: flex;
   justify-content: flex-end;
   gap: 12px;
 }
 
 .delete-warning {
-  // 删除提示用图标和文案组合强化不可恢复语义。
   display: flex;
   align-items: center;
   gap: 8px;

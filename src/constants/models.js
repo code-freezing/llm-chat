@@ -47,5 +47,4 @@ export const MODEL_OPTIONS = [
   },
 ]
 
-// 默认模型直接取列表第一项，确保“默认值”和“可选列表”始终保持一致。
 export const DEFAULT_MODEL = MODEL_OPTIONS[0].value

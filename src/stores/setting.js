@@ -13,7 +13,6 @@ export const useSettingStore = defineStore(
     }
   },
   {
-    // 设置项同样需要持久化，否则用户每次刷新都要重新填写 API Key 和参数。
     persist: true,
   },
 )

@@ -50,7 +50,7 @@
 </template>
 
 <script setup>
-import { defineAsyncComponent, nextTick, ref, onMounted, onUnmounted } from 'vue'
+import { defineAsyncComponent, ref, onMounted, onUnmounted } from 'vue'
 import { Plus } from '@element-plus/icons-vue'
 import { useChatStore } from '@/stores/chat'
 
@@ -77,7 +77,6 @@ onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
 })
 
-// 顶部按钮点击时切换菜单显隐状态。
 const toggle = () => {
   isVisible.value = !isVisible.value
 }
@@ -92,18 +91,15 @@ const handleSwitchChat = (conversationId) => {
   isVisible.value = false
 }
 
-const handleOpenDialog = async (conversationId, type) => {
-  await nextTick()
-  dialogEdit.value?.openDialog(conversationId, type)
+const handleOpenDialog = (conversationId, type) => {
+  dialogEdit.value.openDialog(conversationId, type)
 }
 
-// 历史会话标题较长时做截断，避免菜单横向被撑开。
 const formatTitle = (title) => {
-  return title.length > 4 ? `${title.slice(0, 4)}...` : title
+  return title.length > 6 ? `${title.slice(0, 6)}...` : title
 }
 
 defineExpose({
-  // 允许父组件在需要时从外部控制菜单开关。
   toggle,
 })
 </script>
@@ -257,8 +253,8 @@ defineExpose({
       justify-content: flex-start;
       border: none;
       background: none;
-      height: 2.5rem;
-      padding: 0.5rem 1rem;
+      height: 1.5rem;
+      padding: 1rem;
       font-size: 0.875rem;
       color: #374151;
 

@@ -39,7 +39,6 @@
               <el-icon><QuestionFilled /></el-icon>
             </el-tooltip>
           </div>
-
           <a href="https://cloud.siliconflow.cn/account/ak" target="_blank" class="get-key-link">
             获取 API Key
           </a>
@@ -120,6 +119,86 @@
           />
         </div>
       </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          Temperature
+          <el-tooltip content="控制输出的随机性，越高越发散" placement="top">
+            <el-icon><QuestionFilled /></el-icon>
+          </el-tooltip>
+        </div>
+        <div class="setting-control">
+          <el-slider
+            v-model="settingStore.settings.temperature"
+            :min="0"
+            :max="2"
+            :step="0.1"
+            :show-tooltip="false"
+            class="setting-slider"
+          />
+          <el-input-number
+            v-model="settingStore.settings.temperature"
+            :min="0"
+            :max="2"
+            :step="0.1"
+            :precision="1"
+            controls-position="right"
+          />
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          Top P
+          <el-tooltip content="控制 nucleus sampling 的候选概率范围" placement="top">
+            <el-icon><QuestionFilled /></el-icon>
+          </el-tooltip>
+        </div>
+        <div class="setting-control">
+          <el-slider
+            v-model="settingStore.settings.topP"
+            :min="0"
+            :max="1"
+            :step="0.1"
+            :show-tooltip="false"
+            class="setting-slider"
+          />
+          <el-input-number
+            v-model="settingStore.settings.topP"
+            :min="0"
+            :max="1"
+            :step="0.1"
+            :precision="1"
+            controls-position="right"
+          />
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-label">
+          Top K
+          <el-tooltip content="限制每个 token 采样时参与竞争的候选数量" placement="top">
+            <el-icon><QuestionFilled /></el-icon>
+          </el-tooltip>
+        </div>
+        <div class="setting-control">
+          <el-slider
+            v-model="settingStore.settings.topK"
+            :min="1"
+            :max="100"
+            :step="1"
+            :show-tooltip="false"
+            class="setting-slider"
+          />
+          <el-input-number
+            v-model="settingStore.settings.topK"
+            :min="1"
+            :max="100"
+            :step="1"
+            controls-position="right"
+          />
+        </div>
+      </div>
     </div>
   </el-drawer>
 </template>
@@ -128,11 +207,7 @@
 import { ref, watch, computed } from 'vue'
 import { useSettingStore } from '@/stores/setting'
 import { MODEL_OPTIONS } from '@/constants/models'
-import {
-  DEFAULT_SYSTEM_PROMPT_PRESET,
-  SYSTEM_PROMPT_PRESETS,
-  getSystemPromptByPreset,
-} from '@/constants/systemPrompts'
+import { SYSTEM_PROMPT_PRESETS, getSystemPromptByPreset } from '@/constants/systemPrompts'
 import { QuestionFilled } from '@element-plus/icons-vue'
 
 // SettingsPanel 直接操作 setting store，用户在这里改动的模型和参数会直接影响后续聊天请求的请求体。
@@ -163,23 +238,12 @@ watch(
 
 // 自定义 prompt 要和“当前真正发给模型的 system prompt”分开保存，这样用户切换到别的预设后，再切回“自定义”时，仍然能恢复自己写过的内容。
 const normalizeSystemPromptSettings = () => {
-  if (typeof settingStore.settings.customSystemPrompt !== 'string') {
-    settingStore.settings.customSystemPrompt = ''
-  }
-
   const currentPreset = settingStore.settings.systemPromptPreset
   const customPrompt = settingStore.settings.customSystemPrompt.trim()
 
   // 恢复时优先尊重“用户上次明确选择的预设”，只有当上次选择本身就是 custom 时，才去读取 customSystemPrompt。
   if (currentPreset === 'custom' && customPrompt) {
     settingStore.settings.systemPrompt = settingStore.settings.customSystemPrompt
-    return
-  }
-
-  // 如果上次选的是 custom 但内容为空，就回退到通用助手，避免界面停留在“自定义”却没有任何有效内容。
-  if (currentPreset === 'custom') {
-    settingStore.settings.systemPromptPreset = DEFAULT_SYSTEM_PROMPT_PRESET
-    settingStore.settings.systemPrompt = getSystemPromptByPreset(DEFAULT_SYSTEM_PROMPT_PRESET)
     return
   }
 
@@ -216,7 +280,6 @@ watch(
   },
 )
 
-// 聊天页通过组件 ref 调用 openDrawer，从外部直接打开设置抽屉。
 const openDrawer = () => {
   visible.value = true
 }
@@ -229,7 +292,7 @@ defineExpose({
 <style lang="scss" scoped>
 .setting-container {
   // 抽屉内部整体留白比页面表单更大，减轻侧边栏压迫感。
-  padding: 20px;
+  padding: 0 20px 0 20px;
   color: #27272a;
 }
 

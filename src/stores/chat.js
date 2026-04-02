@@ -12,6 +12,7 @@ export const useChatStore = defineStore(
         id: '1',
         title: DEFAULT_CONVERSATION_TITLE,
         summary: '',
+        summaryCutoff: 0,
         messages: [],
         createdAt: Date.now(),
       },
@@ -36,6 +37,7 @@ export const useChatStore = defineStore(
         id: Date.now().toString(),
         title: DEFAULT_CONVERSATION_TITLE,
         summary: '',
+        summaryCutoff: 0,
         messages: [],
         createdAt: Date.now(),
       }
@@ -98,6 +100,13 @@ export const useChatStore = defineStore(
       }
     }
 
+    const updateConversationSummaryCutoff = (conversationId, summaryCutoff) => {
+      const conversation = conversations.value.find((item) => item.id === conversationId)
+      if (conversation) {
+        conversation.summaryCutoff = summaryCutoff
+      }
+    }
+
     const deleteConversation = (conversationId) => {
       const index = conversations.value.findIndex((item) => item.id === conversationId)
       if (index === -1) return
@@ -130,11 +139,11 @@ export const useChatStore = defineStore(
       switchConversation,
       updateConversationTitle,
       updateConversationSummary,
+      updateConversationSummaryCutoff,
       deleteConversation,
     }
   },
   {
-    // 会话状态持久化到本地，刷新页面后仍然可以恢复对话历史。
     persist: true,
   },
 )

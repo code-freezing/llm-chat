@@ -6,14 +6,14 @@
         <span class="logo-text">LLM Chat</span>
       </div>
       <div class="header-right">
-        <div class="search-container" @click="handleSearchClick">
+        <div class="search-container" @click="showSearchDialog = true">
           <div class="search-input">
             <el-icon class="search-icon"><Search /></el-icon>
             <!-- 这里只做触发器，不真的在首页输入文字。 -->
             <input v-model="searchText" type="text" placeholder="搜索" readonly />
           </div>
         </div>
-        <a href="https://github.com/code-freezing" target="_blank" class="github-link">
+        <a href="https://github.com/code-freezing/llm-chat" target="_blank" class="github-link">
           <img src="@/assets/photo/github.png" alt="GitHub" class="github-icon" />
         </a>
       </div>
@@ -47,7 +47,7 @@
     </main>
 
     <Transition name="fade">
-      <div v-if="showSearchDialog" class="search-dialog-overlay" @click="handleOverlayClick">
+      <div v-if="showSearchDialog" class="search-dialog-overlay" @click="showSearchDialog = false">
         <!-- 阻止内部点击冒泡到遮罩层，避免弹层内容一点击就关闭。 -->
         <div class="search-dialog-container" @click.stop>
           <SearchDialog />
@@ -58,55 +58,35 @@
 </template>
 
 <script setup>
-import { defineAsyncComponent, ref, onMounted, onUnmounted } from 'vue'
+import { defineAsyncComponent, ref, watch, onUnmounted } from 'vue'
 import { Search, ChatLineRound, Document, Setting } from '@element-plus/icons-vue'
 
-const SearchDialog = defineAsyncComponent(() => import('@/components/SearchDialog.vue'))
 // 搜索弹层按需加载，首页在未打开弹层时无需同步下载这部分逻辑。
+const SearchDialog = defineAsyncComponent(() => import('@/components/SearchDialog.vue'))
 
 // HomePage 是项目的入口页，它主要负责展示产品简介，并承载一个独立的搜索/提问弹层入口。
 const searchText = ref('')
 const showSearchDialog = ref(false)
 
-// 点击搜索框后直接打开搜索弹层。
-const handleSearchClick = () => {
-  showSearchDialog.value = true
-}
-
-// 点击遮罩层空白区域时关闭弹层，点击弹层内部则不关闭。
-const handleOverlayClick = (event) => {
-  if (event.target.classList.contains('search-dialog-overlay')) {
-    showSearchDialog.value = false
-  }
-}
-
-// 这里额外监听一次全局点击，是为了兼容从搜索框外部点击关闭弹层的交互。
-const handleClickOutside = (event) => {
-  const searchDialog = document.querySelector('.search-dialog')
-  if (
-    searchDialog &&
-    !searchDialog.contains(event.target) &&
-    !event.target.closest('.search-container')
-  ) {
-    showSearchDialog.value = false
-  }
-}
-
-// - Esc 关闭搜索弹层
+// 只在搜索弹层打开时响应 Esc，避免首页常驻全局键盘监听。
 const handleKeydown = (event) => {
   if (event.key === 'Escape') {
     showSearchDialog.value = false
   }
 }
 
-onMounted(() => {
-  // 进入首页时挂上全局交互监听，离开首页后及时移除。
-  document.addEventListener('click', handleClickOutside)
-  document.addEventListener('keydown', handleKeydown)
+watch(showSearchDialog, (visible) => {
+  // 弹层打开时再绑定键盘事件，关闭后立即移除，减少无效监听。
+  if (visible) {
+    document.addEventListener('keydown', handleKeydown)
+    return
+  }
+
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
+  // 页面销毁时兜底清理一次，避免监听残留到别的页面。
   document.removeEventListener('keydown', handleKeydown)
 })
 </script>

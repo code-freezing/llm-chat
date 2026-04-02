@@ -69,15 +69,16 @@ const searchText = ref('')
 const messages = ref([])
 const isLoading = ref(false)
 const summary = ref('')
+const summaryCutoff = ref(0)
 
 const aiMessage = 'Hi，我是你的 AI 小助手，有什么问题都可以问我。'
 
 // 初始推荐问题用于帮助用户快速试用接口，不会自动发送。
 const suggestedPrompts = [
-  '如何快速上手 Vue 3 框架',
-  '字节跳动前端面试难吗',
-  '前端如何实现弹性布局',
-  '喝酒脸红代表酒量好吗',
+  '如何快速上手 Vue 3 框架？',
+  '字节跳动前端面试难吗？',
+  '前端如何实现弹性布局？',
+  '喝酒脸红代表酒量好吗？',
 ]
 
 const messagesContainer = ref(null)
@@ -97,6 +98,10 @@ const { handleSend: sendMessage, handleRegenerate } = useChatSession({
   getSummary: () => summary.value,
   setSummary: (value) => {
     summary.value = value
+  },
+  getSummaryCutoff: () => summaryCutoff.value,
+  setSummaryCutoff: (value) => {
+    summaryCutoff.value = value
   },
 })
 
@@ -200,7 +205,6 @@ const getMessageKey = (message) => message.id
     }
 
     .suggested-prompts {
-      margin-top: 24px;
       display: flex;
       flex-direction: column;
       gap: 12px;

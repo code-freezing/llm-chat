@@ -32,19 +32,28 @@ export const useAutoScroll = (messages, containerRef) => {
     containerRef.value.scrollTop = containerRef.value.scrollHeight
   }
 
+  // 虚拟列表的真实高度往往要等 DOM 更新完成并进入下一帧布局后才稳定，因此把滚动动作排到 post-flush + requestAnimationFrame 阶段执行，避免拿到旧高度导致“看似到底，实际上还差一截”。
+  const queueScrollToBottom = () => {
+    nextTick(() => {
+      requestAnimationFrame(() => {
+        scrollToBottom()
+      })
+    })
+  }
+
   // 消息列表发生变化后，等待 DOM 完成更新，再把滚动条推到底部；`deep: true` 是因为流式输出时，经常只是最后一条消息的内容在持续变化，数组长度本身不一定变化。
   watch(
     messages,
     () => {
       if (!isNearBottom()) return
-      nextTick(scrollToBottom)
+      queueScrollToBottom()
     },
-    { deep: true },
+    { deep: true, flush: 'post' },
   )
 
   // 首次进入页面时，如果本地已经恢复出历史消息，也要立即滚动到底部。
   onMounted(() => {
-    nextTick(scrollToBottom)
+    queueScrollToBottom()
   })
 
   return {
