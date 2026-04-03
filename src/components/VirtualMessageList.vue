@@ -23,7 +23,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, triggerRef, watch } from 'vue'
 
 const props = defineProps({
   // 原始消息数组，由父组件传入。
@@ -52,38 +52,44 @@ const props = defineProps({
 const containerRef = ref(null)
 const scrollTop = ref(0)
 const viewportHeight = ref(0)
-const heightCache = ref(new Map())
+const itemHeights = shallowRef([])
+const prefixHeights = shallowRef([0])
+const heightCache = new Map()
+const keyToIndex = new Map()
 const itemElements = new Map()
 const resizeObservers = new Map()
 let scrollFrameId = 0
 
 const getItemKey = (item) => props.itemKey(item)
 
-// 优先使用量测后的真实高度；若还没量到，就退回估算值参与虚拟滚动计算。
-const getItemHeight = (index) => {
-  const item = props.items[index]
-  if (!item) return 0
+const buildPrefixHeights = (heights) => {
+  const offsets = [0]
+  let total = 0
 
-  return heightCache.value.get(getItemKey(item)) ?? props.estimateSize
+  for (const height of heights) {
+    total += height
+    offsets.push(total)
+  }
+
+  return offsets
+}
+
+const rebuildHeightState = (keys) => {
+  keyToIndex.clear()
+
+  const nextHeights = keys.map((key, index) => {
+    keyToIndex.set(key, index)
+    return heightCache.get(key) ?? props.estimateSize
+  })
+
+  itemHeights.value = nextHeights
+  prefixHeights.value = buildPrefixHeights(nextHeights)
 }
 
 // 容器高度变化会直接影响可见区计算，因此在挂载和窗口尺寸变化时都要更新。
 const updateViewportHeight = () => {
   viewportHeight.value = containerRef.value?.clientHeight || 0
 }
-
-// 滚动过程中会频繁查询“某个索引之前累计了多高”，这里预先维护前缀高度表，避免每次滚动都重复做 O(n) 累加。
-const prefixHeights = computed(() => {
-  const offsets = [0]
-  let total = 0
-
-  for (let index = 0; index < props.items.length; index += 1) {
-    total += getItemHeight(index)
-    offsets.push(total)
-  }
-
-  return offsets
-})
 
 const getOffsetBefore = (endIndex) => prefixHeights.value[endIndex] ?? 0
 
@@ -173,13 +179,26 @@ const bottomSpacerHeight = computed(() => {
   return Math.max(getTotalHeight() - topSpacerHeight.value - visibleHeight, 0)
 })
 
-// 只有当量到的新高度与缓存不同，才替换缓存，避免无意义触发响应式更新。
+// 只有当量到的新高度与缓存不同，才增量修正当前项及其后续前缀高度，避免每次都整表重算。
 const updateItemHeight = (key, height) => {
-  if (!height || heightCache.value.get(key) === height) return
+  if (!height) return
 
-  const nextCache = new Map(heightCache.value)
-  nextCache.set(key, height)
-  heightCache.value = nextCache
+  const index = keyToIndex.get(key)
+  if (index === undefined) return
+
+  const currentHeight = itemHeights.value[index] ?? props.estimateSize
+  if (currentHeight === height) return
+
+  heightCache.set(key, height)
+  itemHeights.value[index] = height
+
+  const delta = height - currentHeight
+  for (let offsetIndex = index + 1; offsetIndex < prefixHeights.value.length; offsetIndex += 1) {
+    prefixHeights.value[offsetIndex] += delta
+  }
+
+  triggerRef(itemHeights)
+  triggerRef(prefixHeights)
 }
 
 // 插槽内容的根节点可能带有 margin（例如 ChatMessage 的 margin-bottom），这些外边距不会稳定体现在 virtual-item 自身的 contentRect 里，因此量测时要把第一层子节点的垂直外边距一并算进去。
@@ -263,8 +282,10 @@ watch(
   },
 )
 
+const itemKeys = computed(() => props.items.map((item) => getItemKey(item)))
+
 watch(
-  () => props.items.map((item) => getItemKey(item)),
+  itemKeys,
   (keys) => {
     const activeKeys = new Set(keys)
 
@@ -275,14 +296,14 @@ watch(
       itemElements.delete(key)
       resizeObservers.get(key)?.disconnect()
       resizeObservers.delete(key)
-
-      if (heightCache.value.has(key)) {
-        const nextCache = new Map(heightCache.value)
-        nextCache.delete(key)
-        heightCache.value = nextCache
-      }
+      heightCache.delete(key)
     })
+
+    // 只有列表结构真的发生变化时，才整体重建一次索引和前缀高度；
+    // 运行期的高度变化则走 updateItemHeight 的增量修正逻辑。
+    rebuildHeightState(keys)
   },
+  { immediate: true },
 )
 
 onMounted(() => {
@@ -305,7 +326,7 @@ onUnmounted(() => {
 })
 
 defineExpose({
-  // 供 useAutoScroll 调用。
+  // 供 useScrollToBottom 调用。
   scrollToBottom,
   // 供外部在需要时直接拿到底层滚动容器。
   getScrollElement: () => containerRef.value,

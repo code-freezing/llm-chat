@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 
 const DEFAULT_CONVERSATION_TITLE = '日常问答'
+const DEFAULT_LOADING_TEXT = '内容生成中...'
 
 export const useChatStore = defineStore(
   'llm-chat',
@@ -63,6 +64,21 @@ export const useChatStore = defineStore(
 
     const setIsLoading = (value) => {
       isLoading.value = value
+    }
+
+    const resetTransientState = () => {
+      // isLoading 和消息级 loading 都属于瞬时 UI 状态，
+      // 不应该在刷新后继续保留，否则容易出现按钮卡死或占位消息一直转圈。
+      isLoading.value = false
+
+      conversations.value.forEach((conversation) => {
+        conversation.messages.forEach((message) => {
+          if (!message.loading) return
+
+          message.loading = false
+          message.loading_text = DEFAULT_LOADING_TEXT
+        })
+      })
     }
 
     const updateLastMessage = (content, reasoning_content, completion_tokens, speed) => {
@@ -133,6 +149,7 @@ export const useChatStore = defineStore(
       isLoading,
       addMessage,
       setIsLoading,
+      resetTransientState,
       updateLastMessage,
       getLastMessage,
       createConversation,
@@ -144,6 +161,9 @@ export const useChatStore = defineStore(
     }
   },
   {
-    persist: true,
+    // 只持久化真正需要恢复的聊天数据；像 isLoading 这种瞬时状态刷新后必须重置。
+    persist: {
+      pick: ['conversations', 'currentConversationId'],
+    },
   },
 )

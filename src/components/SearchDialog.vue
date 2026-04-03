@@ -61,7 +61,7 @@
 import { ref } from 'vue'
 import ChatMessage from './ChatMessage.vue'
 import VirtualMessageList from './VirtualMessageList.vue'
-import { useAutoScroll } from '@/composables/useAutoScroll'
+import { useScrollToBottom } from '@/composables/useScrollToBottom'
 import { useChatSession } from '@/composables/useChatSession'
 
 // SearchDialog 是首页里的轻量提问弹层；它复用了聊天请求与消息渲染能力，但消息状态只保存在本组件内部。
@@ -83,7 +83,7 @@ const suggestedPrompts = [
 
 const messagesContainer = ref(null)
 
-useAutoScroll(messages, messagesContainer)
+useScrollToBottom(messages, messagesContainer)
 
 // SearchDialog 不依赖全局会话 store，而是把“消息数组 + 摘要字符串”都留在组件本地。
 const { handleSend: sendMessage, handleRegenerate } = useChatSession({

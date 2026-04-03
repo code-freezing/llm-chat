@@ -57,6 +57,15 @@
       </div>
     </div>
 
+    <button
+      v-if="currentMessages.length > 0 && !isNearBottom"
+      class="scroll-to-bottom-btn"
+      type="button"
+      @click="scrollToBottom"
+    >
+      <span class="arrow">↓</span>
+    </button>
+
     <div class="chat-input-container">
       <!-- 输入组件只负责收集文本，发送动作仍由当前页面驱动。 -->
       <ChatInput :loading="isLoading" @send="handleSend" />
@@ -76,7 +85,7 @@ import ChatInput from '@/components/ChatInput.vue'
 import ChatMessage from '@/components/ChatMessage.vue'
 import PopupMenu from '@/components/PopupMenu.vue'
 import VirtualMessageList from '@/components/VirtualMessageList.vue'
-import { useAutoScroll } from '@/composables/useAutoScroll'
+import { useScrollToBottom } from '@/composables/useScrollToBottom'
 import { useChatSession } from '@/composables/useChatSession'
 import { useChatStore } from '@/stores/chat'
 
@@ -98,9 +107,11 @@ const messagesContainer = ref(null)
 const settingDrawer = ref(null)
 const dialogEdit = ref(null)
 
-useAutoScroll(currentMessages, messagesContainer)
+const { isNearBottom, scrollToBottom } = useScrollToBottom(currentMessages, messagesContainer)
 
 onMounted(() => {
+  chatStore.resetTransientState()
+
   // 做一层兜底，避免页面在“没有当前会话”的状态下工作。
   if (chatStore.conversations.length === 0) {
     chatStore.createConversation()
@@ -158,6 +169,7 @@ const handleBack = () => {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .chat-header {
@@ -378,5 +390,39 @@ const handleBack = () => {
   max-width: 796px;
   margin: 0 auto;
   width: 100%;
+}
+
+.scroll-to-bottom-btn {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 6.1rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid rgba(63, 122, 241, 0.16);
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.96);
+  color: #3f7af1;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 12;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+
+  .arrow {
+    font-size: 1.2rem;
+    line-height: 1;
+  }
+
+  &:hover {
+    transform: translateX(-50%) translateY(-1px);
+    background-color: #ffffff;
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.18);
+  }
 }
 </style>

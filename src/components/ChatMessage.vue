@@ -55,7 +55,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 
 import { renderMarkdown } from '@/renderers/markdown'
@@ -67,6 +67,9 @@ import dislikeIcon from '@/assets/photo/踩.png'
 import dislikeActiveIcon from '@/assets/photo/踩2.png'
 import regenerateIcon from '@/assets/photo/重新生成.png'
 import thinkingIcon from '@/assets/photo/深度思考.png'
+
+// 流式回复会非常频繁地更新 message.content，这里给一个短节流窗口，避免每个 token 都触发整段 Markdown 重渲染。
+const STREAM_RENDER_DELAY = 100
 
 // ChatMessage 负责把消息对象渲染成最终可见的聊天气泡，除了普通内容展示外，它还承担 reasoning 展示和消息操作按钮。
 const props = defineProps({
@@ -87,6 +90,51 @@ const isLiked = ref(false)
 const isDisliked = ref(false)
 const isCopied = ref(false)
 const isReasoningExpanded = ref(true)
+// 模板最终消费的是这两个 HTML 字符串，而不是直接在 computed 里同步执行 Markdown 渲染。
+const renderedContent = ref('')
+const renderedReasoning = ref('')
+let contentRenderTimer = 0
+let reasoningRenderTimer = 0
+
+const clearTimer = (timerId) => {
+  if (timerId) {
+    window.clearTimeout(timerId)
+  }
+}
+
+const syncRenderedHtml = (targetRef, source) => {
+  targetRef.value = renderMarkdown(source)
+}
+
+const scheduleRenderedHtmlUpdate = (targetRef, source, timerType) => {
+  // 仅在流式阶段做节流；非流式消息通常只渲染一次，直接同步更新即可。
+  const delay = props.message.loading ? STREAM_RENDER_DELAY : 0
+
+  if (timerType === 'content') {
+    clearTimer(contentRenderTimer)
+    if (delay === 0) {
+      syncRenderedHtml(targetRef, source)
+      return
+    }
+
+    contentRenderTimer = window.setTimeout(() => {
+      syncRenderedHtml(targetRef, source)
+      contentRenderTimer = 0
+    }, delay)
+    return
+  }
+
+  clearTimer(reasoningRenderTimer)
+  if (delay === 0) {
+    syncRenderedHtml(targetRef, source)
+    return
+  }
+
+  reasoningRenderTimer = window.setTimeout(() => {
+    syncRenderedHtml(targetRef, source)
+    reasoningRenderTimer = 0
+  }, delay)
+}
 
 // 支持 reasoning 的模型会返回两段内容：一段是推理过程，一段是最终回答，这里允许用户单独展开或折叠推理内容。
 const toggleReasoning = () => {
@@ -166,12 +214,44 @@ const handleContentClick = (event) => {
   }
 }
 
-// 最终消息内容和 reasoning 内容都会先转成 HTML，再交给模板里的 v-html 渲染。
-const renderedContent = computed(() => renderMarkdown(props.message.content))
+watch(
+  () => props.message.content,
+  (content) => {
+    // assistant 流式输出时，正文会连续变化，这里把短时间内的多次变化合并成一次渲染。
+    scheduleRenderedHtmlUpdate(renderedContent, content, 'content')
+  },
+  { immediate: true },
+)
 
-const renderedReasoning = computed(() => {
-  if (!props.message.reasoning_content) return ''
-  return renderMarkdown(props.message.reasoning_content)
+watch(
+  () => props.message.reasoning_content,
+  (reasoningContent) => {
+    // reasoning 内容和正文分开节流，避免其中一段频繁变化时互相打断。
+    scheduleRenderedHtmlUpdate(renderedReasoning, reasoningContent, 'reasoning')
+  },
+  { immediate: true },
+)
+
+watch(
+  () => props.message.loading,
+  (loading) => {
+    // 流式结束时立即渲染最终内容，避免最后一批 token 还停留在节流窗口里。
+    if (loading) return
+
+    clearTimer(contentRenderTimer)
+    contentRenderTimer = 0
+    syncRenderedHtml(renderedContent, props.message.content)
+
+    clearTimer(reasoningRenderTimer)
+    reasoningRenderTimer = 0
+    syncRenderedHtml(renderedReasoning, props.message.reasoning_content)
+  },
+)
+
+onUnmounted(() => {
+  // 组件被虚拟列表卸载时要及时清理定时器，避免异步回调继续写入已经销毁的组件状态。
+  clearTimer(contentRenderTimer)
+  clearTimer(reasoningRenderTimer)
 })
 </script>
 
@@ -288,19 +368,19 @@ const renderedReasoning = computed(() => {
       }
 
       :deep(h1) {
-        font-size: 1.9rem;
+        font-size: 1.5rem;
       }
 
       :deep(h2) {
-        font-size: 1.55rem;
+        font-size: 1.3rem;
       }
 
       :deep(h3) {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
       }
 
       :deep(h4) {
-        font-size: 1.05rem;
+        font-size: 1rem;
       }
 
       :deep(p) {

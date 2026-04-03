@@ -19,7 +19,10 @@
         :disabled="props.loading"
         @click="handleSend"
       >
-        <img :src="props.loading ? loadingIcon : sendIcon" :alt="props.loading ? 'loading' : 'send'" />
+        <img
+          :src="props.loading ? loadingIcon : sendIcon"
+          :alt="props.loading ? 'loading' : 'send'"
+        />
       </button>
     </div>
   </div>

@@ -1,6 +1,6 @@
 <template>
   <!-- 左上角悬浮菜单，集中承载会话切换与管理入口。 -->
-  <div class="popup-wrapper">
+  <div ref="wrapperRef" class="popup-wrapper">
     <button class="action-btn" @click="toggle">
       <img src="@/assets/photo/弹出框.png" alt="menu" />
     </button>
@@ -60,11 +60,11 @@ const DialogEdit = defineAsyncComponent(() => import('@/components/DialogEdit.vu
 const isVisible = ref(false)
 const chatStore = useChatStore()
 const dialogEdit = ref(null)
+const wrapperRef = ref(null)
 
 // 通过点击外部区域关闭弹层，避免菜单一直停留在页面上。
 const handleClickOutside = (event) => {
-  const wrapper = document.querySelector('.popup-wrapper')
-  if (wrapper && !wrapper.contains(event.target)) {
+  if (wrapperRef.value && !wrapperRef.value.contains(event.target)) {
     isVisible.value = false
   }
 }
